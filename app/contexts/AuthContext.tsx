@@ -12,6 +12,7 @@ interface User {
   poza?: string;
   telefon?: string;
   location?: string;
+  points: number;
   createdAt?: Date;
   updatedAt?: Date;
 }

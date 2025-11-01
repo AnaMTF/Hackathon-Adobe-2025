@@ -1,30 +1,24 @@
 import { z } from 'zod';
 
-// Event schema for posts
-const EventSchema = z.object({
-  location: z.string().min(1),
-  time: z.string().datetime().or(z.date()),
-});
-
 // Post action schemas
 export const PostCreateSchema = z.object({
   action: z.literal('create'),
   content: z.object({
     authorUuid: z.string().uuid(),
-    text: z.string().min(1).max(256),
-    poze: z.array(z.string().startsWith('data:image')).max(3).default([]), // Base64 images
-    tags: z.array(z.string().uuid()).max(10).default([]),
-    event: EventSchema.optional(),
+    title: z.string().min(1).max(120),
+    body: z.string().min(1),
+    image: z.string().startsWith('data:image').optional(),
+    code: z.string().optional(),
   }),
 });
 
 export const PostUpdateSchema = z.object({
   action: z.literal('update'),
   content: z.object({
-    text: z.string().min(1).max(256).optional(),
-    poze: z.array(z.string().startsWith('data:image')).max(3).optional(), // Base64 images
-    tags: z.array(z.string().uuid()).max(10).optional(),
-    event: EventSchema.optional(),
+    title: z.string().min(1).max(120).optional(),
+    body: z.string().min(1).optional(),
+    image: z.string().startsWith('data:image').nullable().optional(),
+    code: z.string().nullable().optional(),
   }).refine(
     (content) => Object.keys(content).length > 0,
     { message: "At least one field must be provided for update" }
