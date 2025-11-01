@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
       poza: processedImage,
       telefon: data.telefon || undefined,
       location: data.location || undefined,
+      status: 'online', // Set user as online when they create an account
     });
 
     console.log('[signup] User created:', {

@@ -7,9 +7,10 @@ import { useAuth } from "../contexts/AuthContext";
 type ApiPost = {
   uuid: string;
   authorUuid: string;
-  text: string;
-  poze: string[];
-  tags: string[];
+  title: string;
+  body: string;
+  image?: string | null;
+  code?: string | null;
   timestamp: Date | string;
   author?: {
     uuid: string;
@@ -49,17 +50,12 @@ export default function FeedPage() {
 
   // Transform API post to display format
   const transformApiPost = (apiPost: ApiPost): Post => {
-    // Split text into title and body (if it has double newline)
-    const textParts = apiPost.text.split('\n\n');
-    const title = textParts.length > 1 ? textParts[0] : '';
-    const body = textParts.length > 1 ? textParts.slice(1).join('\n\n') : apiPost.text;
-
     return {
       id: apiPost.uuid,
-      title,
-      body,
-      img: apiPost.poze && apiPost.poze.length > 0 ? apiPost.poze[0] : null,
-      code: null, // Code snippets not supported in API yet
+      title: apiPost.title,
+      body: apiPost.body,
+      img: apiPost.image || null,
+      code: apiPost.code || null,
       createdAt: new Date(apiPost.timestamp).getTime(),
       author: apiPost.authorUuid,
       authorName: apiPost.author?.numeFullName || 'Unknown User',
@@ -212,18 +208,15 @@ export default function FeedPage() {
     setError("");
 
     try {
-      // Combine title and body for the API text field
-      const postText = editTitle.trim() 
-        ? (editBody.trim() ? `${editTitle.trim()}\n\n${editBody.trim()}` : editTitle.trim())
-        : editBody.trim();
-
       const response = await fetch(`/api/posts/${editingPost.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: postText,
+          title: editTitle.trim(),
+          body: editBody.trim(),
+          code: editCode || null,
         }),
       });
 

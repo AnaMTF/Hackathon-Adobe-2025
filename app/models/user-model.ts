@@ -110,7 +110,7 @@ User.init(
     status: {
       type: DataTypes.ENUM('online', 'away', 'busy', 'offline'),
       allowNull: false,
-      defaultValue: 'offline',
+      defaultValue: 'online',
     },
     lastSeen: {
       type: DataTypes.DATE,

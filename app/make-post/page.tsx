@@ -72,19 +72,15 @@ export default function MakePostPage() {
 		setSuccess("");
 
 		try {
-			// Combine title and body for the API text field
-			const postText = title.trim() 
-				? (body.trim() ? `${title.trim()}\n\n${body.trim()}` : title.trim())
-				: body.trim();
-
 			// Prepare the API request payload
 			const payload = {
 				action: "create" as const,
 				content: {
 					authorUuid: user.uuid,
-					text: postText,
-					poze: imgPreview ? [imgPreview] : [],
-					tags: [],
+					title: title.trim(),
+					body: body.trim(),
+					image: imgPreview || undefined,
+					code: codeSnippet || undefined,
 				}
 			};
 

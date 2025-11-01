@@ -16,11 +16,17 @@ async function migrate() {
       await queryInterface.addColumn('users', 'status', {
         type: DataTypes.ENUM('online', 'away', 'busy', 'offline'),
         allowNull: false,
-        defaultValue: 'offline',
+        defaultValue: 'online', // Changed default to 'online'
       });
       console.log('✓ status column added');
     } else {
       console.log('✓ status column already exists');
+      // Update the default value for the status column
+      console.log('Updating default value for status column...');
+      await sequelize.query(`
+        UPDATE users SET status = 'online' WHERE status = 'offline' AND lastSeen IS NULL
+      `);
+      console.log('✓ Updated existing users without lastSeen to online');
     }
     
     if (!tableDescription.lastSeen) {
