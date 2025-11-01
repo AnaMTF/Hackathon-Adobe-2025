@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { CHATS, CONVERSATIONS, Msg } from "../data";
+import { EmojiPicker } from "@ferrucc-io/emoji-picker";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -16,6 +17,56 @@ export default function ConversationPage() {
 
   const chat = CHATS.find((c) => c.id === id);
   const messages: Msg[] = CONVERSATIONS[id ?? ""] ?? [];
+
+  // local editable copy so UI can append new messages client-side
+  const [localMessages, setLocalMessages] = useState<Msg[]>(messages);
+  const [inputText, setInputText] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [theme, setTheme] = useState<string>(() =>
+    typeof document !== "undefined" ? document.documentElement.getAttribute("data-theme") ?? "light" : "light"
+  );
+
+  // keep localMessages in sync when id changes (navigating between chats)
+  useEffect(() => {
+    setLocalMessages(messages);
+  }, [id]);
+
+  // observe theme changes (data-theme attribute) so bubble color can adapt
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => {
+      setTheme(el.getAttribute("data-theme") ?? "light");
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
+  // helper: scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [localMessages]);
+
+  const sendMessage = () => {
+    const text = inputText.trim();
+    if (!text) return;
+    const now = new Date();
+    const newMsg: Msg = {
+      id: String(now.getTime()),
+      from: "me",
+      text,
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    } as Msg;
+    setLocalMessages((s) => [...s, newMsg]);
+    setInputText("");
+    setShowEmojiPicker(false);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setInputText((t) => t + emoji);
+    setShowEmojiPicker(false);
+  };
 
   if (!chat) {
     return (
@@ -64,51 +115,90 @@ export default function ConversationPage() {
       </header>
 
       <div className="flex-1 overflow-auto container mx-auto p-4">
-        <div className="max-w-3xl mx-auto flex flex-col gap-3">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex ${
-                m.from === "me" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {m.from === "them" && (
-                <div className="mr-3 w-10 h-10 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-semibold">
-                  {chat.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .slice(0, 2)
-                    .join("")}
+          <div className="max-w-3xl mx-auto flex flex-col gap-3">
+            {localMessages.map((m) => (
+              <div key={m.id} className={m.from === "me" ? "chat chat-end" : "chat chat-start"}>
+                {/* avatar */}
+                <div className="chat-image avatar">
+                  <div className="w-10 rounded-full">
+                    {/* use a simple initials avatar fallback */}
+                    <img
+                      alt={m.from === "me" ? "You" : chat.name}
+                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        m.from === "me" ? "You" : chat.name
+                      )}&background=fff&color=000&size=128`}
+                    />
+                  </div>
                 </div>
-              )}
 
-              <div
-                className={`px-4 py-2 rounded-lg max-w-[70%] ${
-                  m.from === "me"
-                    ? "bg-primary text-white rounded-tr-none"
-                    : "bg-base-100 text-base-content rounded-tl-none"
-                }`}
-              >
-                <div className="text-sm">{m.text}</div>
-                <div className="text-xs text-neutral mt-1 text-right">
-                  {m.time}
+                {/* header with name and time */}
+                <div className="chat-header">
+                  {m.from === "me" ? "You" : chat.name}
+                  <time className="text-xs opacity-50 ml-2">{m.time}</time>
                 </div>
+
+                {/* bubble with color classes */}
+                <div
+                  className={`chat-bubble ${
+                    m.from === "me"
+                      ? "chat-bubble-primary text-primary-content"
+                      : `chat-bubble-neutral ${theme === "light" ? "text-white" : "text-base-content"}`
+                  }`}
+                >
+                  {m.text}
+                </div>
+
+                {/* footer/status */}
+                <div className="chat-footer opacity-50">{m.from === "me" ? "Delivered" : ""}</div>
               </div>
-
-              {m.from === "me" && <div className="ml-3" />}
-            </div>
-          ))}
-        </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
       </div>
 
       <footer className="border-t border-base-300 bg-base-100 p-4">
-        <div className="container mx-auto max-w-3xl flex gap-2">
+        <div className="container mx-auto max-w-3xl flex gap-2 items-end">
+          <div className="relative">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setShowEmojiPicker((s) => !s)}
+              aria-label="Toggle emoji picker"
+            >
+              😊
+            </button>
+
+            {showEmojiPicker && (
+              <div className="absolute bottom-12 left-0 z-50">
+                <EmojiPicker onEmojiSelect={handleEmojiSelect}>
+                  <EmojiPicker.Header>
+                    <EmojiPicker.Input placeholder="Search emoji" />
+                  </EmojiPicker.Header>
+                  <EmojiPicker.Group>
+                    <EmojiPicker.List />
+                  </EmojiPicker.Group>
+                </EmojiPicker>
+              </div>
+            )}
+          </div>
+
           <input
             className="input input-bordered flex-1"
             placeholder="Write a message..."
             aria-label="Write a message"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
           />
-          <button className="btn btn-primary">Send</button>
+
+          <button className="btn btn-primary" onClick={sendMessage}>
+            Send
+          </button>
         </div>
       </footer>
     </main>
