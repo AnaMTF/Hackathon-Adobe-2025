@@ -2,9 +2,10 @@ import { sequelize, connectDB, syncDB, initializeDatabase as initDB } from '../.
 import User from './user-model';
 import Post from './post-model';
 import { PostLike, PostComment, PostFavorite } from './post-interactions';
+import Event from './event-model';
 
 // Export models
-export { User, Post, PostLike, PostComment, PostFavorite };
+export { User, Post, PostLike, PostComment, PostFavorite, Event };
 
 // Export database utilities
 export { sequelize, connectDB, syncDB };
@@ -23,6 +24,7 @@ const models = {
   PostLike,
   PostComment,
   PostFavorite,
+  Event,
   sequelize,
   connectDB,
   syncDB,
