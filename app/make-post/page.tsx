@@ -8,6 +8,7 @@ type Post = {
 	title: string;
 	body: string;
 	img?: string | null; // data URL
+	code?: string | null;
 	createdAt: number;
 };
 
@@ -16,6 +17,7 @@ export default function MakePostPage() {
 	const [title, setTitle] = useState("");
 	const [body, setBody] = useState("");
 	const [imgPreview, setImgPreview] = useState<string | null>(null);
+	const [codeSnippet, setCodeSnippet] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [success, setSuccess] = useState("");
 	const fileRef = useRef<HTMLInputElement | null>(null);
@@ -62,6 +64,7 @@ export default function MakePostPage() {
 			title: title.trim(),
 			body: body.trim(),
 			img: imgPreview,
+			code: codeSnippet || null,
 			createdAt: Date.now(),
 		};
 
@@ -70,6 +73,7 @@ export default function MakePostPage() {
 		setTitle("");
 		setBody("");
 		setImgPreview(null);
+		setCodeSnippet("");
 		if (fileRef.current) fileRef.current.value = "";
 
 		// small delay so user sees success then redirect to /feed
@@ -130,6 +134,28 @@ export default function MakePostPage() {
 							</div>
 						)}
 					</div>
+
+								{/* Code snippet section (optional) */}
+								<div>
+									<label className="label">
+										<span className="label-text">Code Snippet (optional)</span>
+									</label>
+									<textarea
+										className="textarea textarea-bordered w-full h-28"
+										placeholder="Paste a command or small code snippet (e.g. npm i daisyui)"
+										value={codeSnippet}
+										onChange={(e) => setCodeSnippet(e.target.value)}
+									/>
+									{codeSnippet && (
+										<div className="mt-3 mockup-code w-full">
+											{codeSnippet.split("\n").map((line, i) => (
+												<pre key={i} {...(i === 0 ? { 'data-prefix': '$' } : {'data-prefix': '$'})}>
+													<code>{line || '\u00A0'}</code>
+												</pre>
+											))}
+										</div>
+									)}
+								</div>
 
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
