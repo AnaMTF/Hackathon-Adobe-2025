@@ -78,6 +78,7 @@ export default function Header() {
             <>
               <Link className="btn btn-ghost btn-sm" href="/feed">Feed</Link>
               <Link className="btn btn-ghost btn-sm" href="/fun-activities">Fun Corner</Link>
+              <Link className="btn btn-ghost btn-sm" href="/rewards">Rewards</Link>
               <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
               
               <Link className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">
