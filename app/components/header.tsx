@@ -2,6 +2,7 @@
 
 import ThemeToggle from "./ThemeToggle";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import { useState, useEffect } from "react";
@@ -75,10 +76,10 @@ export default function Header() {
         <nav className="flex items-center gap-3">
           {user ? (
             <>
-              <a className="btn btn-ghost btn-sm" href="/feed">Feed</a>
-              <a className="btn btn-ghost btn-sm" href="/calendar">Calendar</a>
+              <Link className="btn btn-ghost btn-sm" href="/feed">Feed</Link>
+              <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
               
-              <a className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">
+              <Link className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">
                 Messages
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex items-center justify-center">
@@ -86,7 +87,7 @@ export default function Header() {
                     <span className="sr-only">{unreadCount} unread messages</span>
                   </span>
                 )}
-              </a>
+              </Link>
 
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-sm gap-2">
@@ -108,15 +109,15 @@ export default function Header() {
                   <span className="hidden md:inline">{user.numeFullName?.split(' ')[0] || user.email?.split('@')[0] || 'User'}</span>
                 </label>
                 <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2">
-                  <li><a href="/user">Profile</a></li>
+                  <li><Link href="/user">Profile</Link></li>
                   <li><button onClick={handleLogout}>Logout</button></li>
                 </ul>
               </div>
             </>
           ) : (
             <>
-              <a className="btn btn-ghost btn-sm" href="/auth">Login</a>
-              <a className="btn btn-primary btn-sm" href="/register">Register</a>
+              <Link className="btn btn-ghost btn-sm" href="/auth">Login</Link>
+              <Link className="btn btn-primary btn-sm" href="/register">Register</Link>
             </>
           )}
           <ThemeToggle />
