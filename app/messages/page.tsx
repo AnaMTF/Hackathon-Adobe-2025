@@ -1,22 +1,8 @@
-"use client";
+﻿"use client";
+
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-
-type Chat = {
-  id: string;
-  name: string;
-  email: string;
-  status: "online" | "away" | "busy" | "offline";
-  lastMessage: string;
-  unread?: boolean;
-};
-
-const DUMMY_CHATS: Chat[] = [
-  { id: "1", name: "Aisha Khan", email: "aisha@xiat.com", status: "online", lastMessage: "I'll send the report by EOD.", unread: true },
-  { id: "2", name: "Ben Torres", email: "ben.torres@xiat.com", status: "away", lastMessage: "On a call right now — can we talk later?", unread: false },
-  { id: "3", name: "Carla Reyes", email: "carla@xiat.com", status: "busy", lastMessage: "Locked the design for sprint 6.", unread: true },
-  { id: "4", name: "Daniel Wu", email: "daniel.wu@xiat.com", status: "offline", lastMessage: "Thanks — reviewed and approved.", unread: false },
-];
+import { CHATS, type Chat } from "./data";
 
 function statusColor(s: Chat["status"]) {
   switch (s) {
@@ -33,10 +19,10 @@ function statusColor(s: Chat["status"]) {
 
 export default function Messages() {
   const router = useRouter();
-  const [chats] = useState<Chat[]>(DUMMY_CHATS);
+  const [chats] = useState<Chat[]>(CHATS);
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLDivElement | null>(null);
 
   // expose unread count for header via localStorage
   useEffect(() => {
@@ -77,7 +63,10 @@ export default function Messages() {
                 placeholder="Search chats or colleagues"
                 aria-label="Search chats"
                 value={query}
-                onChange={(e) => { setQuery(e.target.value); setShowResults(true); }}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShowResults(true);
+                }}
                 onFocus={() => setShowResults(true)}
               />
 
@@ -101,11 +90,18 @@ export default function Messages() {
           <div className="divide-y divide-base-200">
             {chats.map((c) => (
               <div key={c.id} className="block">
-                <div onClick={() => router.push(`/messages/${c.id}`)} className="flex items-center gap-4 p-4 hover:bg-base-200 cursor-pointer">
+                <div
+                  onClick={() => router.push(`/messages/${c.id}`)}
+                  className="flex items-center gap-4 p-4 hover:bg-base-200 cursor-pointer"
+                >
                   <div className="relative">
                     <div className="avatar">
                       <div className="w-12 h-12 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-semibold">
-                        {c.name.split(" ").map((n) => n[0]).slice(0,2).join("")}
+                        {c.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .slice(0, 2)
+                          .join("")}
                       </div>
                     </div>
 
@@ -116,7 +112,7 @@ export default function Messages() {
 
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <div className={`${c.unread ? 'font-bold' : 'font-medium'}`}>{c.name}</div>
+                      <div className={`${c.unread ? "font-bold" : "font-medium"}`}>{c.name}</div>
                       <div className="flex items-center gap-2">
                         {c.unread && <span className="inline-block h-2 w-2 rounded-full bg-accent animate-bounce" aria-hidden />}
                         <div className="text-xs text-neutral">2:14 PM</div>
