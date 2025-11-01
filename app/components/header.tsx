@@ -109,7 +109,7 @@ export default function Header() {
                   <span className="hidden md:inline">{user.numeFullName?.split(' ')[0] || user.email?.split('@')[0] || 'User'}</span>
                 </label>
                 <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2">
-                  <li><a href="/user">Profile</a></li>
+                  <li><Link href="/user">Profile</Link></li>
                   <li><button onClick={handleLogout}>Logout</button></li>
                 </ul>
               </div>
