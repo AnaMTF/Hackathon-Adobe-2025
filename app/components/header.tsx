@@ -154,7 +154,7 @@ export default function Header() {
           {user ? (
             <>
               <Link className="btn btn-ghost btn-sm" href="/make-post">Post Something</Link>
-              <Link className="btn btn-ghost btn-sm" href="/fun-activities">Fun Corner</Link>
+              {/* <Link className="btn btn-ghost btn-sm" href="/fun-activities">Fun Corner</Link> */}
               <Link className="btn btn-ghost btn-sm" href="/rewards">Rewards</Link>
               <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
               
