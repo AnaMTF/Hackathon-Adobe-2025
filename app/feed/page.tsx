@@ -58,9 +58,9 @@ export default function FeedPage() {
       code: apiPost.code || null,
       createdAt: new Date(apiPost.timestamp).getTime(),
       author: apiPost.authorUuid,
-      authorName: apiPost.author?.numeFullName || 'Unknown User',
+      authorName: apiPost.author?.numeFullName || "Unknown User",
       authorPhoto: apiPost.author?.poza,
-      likes: apiPost.likes?.map(l => l.userUuid) || [],
+      likes: apiPost.likes?.map((l) => l.userUuid) || [],
     };
   };
 
@@ -69,28 +69,27 @@ export default function FeedPage() {
     try {
       setLoading(true);
       setError("");
-      
-      const response = await fetch('/api/posts?page=1&limit=50');
+
+      const response = await fetch("/api/posts?page=1&limit=50");
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch posts');
+        throw new Error(data.message || "Failed to fetch posts");
       }
 
       const apiPosts: ApiPost[] = data.data.posts || [];
       const transformedPosts = apiPosts.map(transformApiPost);
       setPosts(transformedPosts);
-
     } catch (err) {
-      console.error('Error fetching posts:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load posts');
+      console.error("Error fetching posts:", err);
+      setError(err instanceof Error ? err.message : "Failed to load posts");
       // Fallback to localStorage if API fails
       try {
         const raw = localStorage.getItem("feed_posts");
         const arr: Post[] = raw ? JSON.parse(raw) : [];
         setPosts(arr);
       } catch (e) {
-        console.error('Failed to load from localStorage', e);
+        console.error("Failed to load from localStorage", e);
       }
     } finally {
       setLoading(false);
@@ -109,7 +108,10 @@ export default function FeedPage() {
     };
     window.addEventListener("feed_updated", handleFeedUpdate as EventListener);
     return () =>
-      window.removeEventListener("feed_updated", handleFeedUpdate as EventListener);
+      window.removeEventListener(
+        "feed_updated",
+        handleFeedUpdate as EventListener
+      );
   }, []);
 
   // Like logic - call API
@@ -119,11 +121,11 @@ export default function FeedPage() {
       return;
     }
 
-    const post = posts.find(p => p.id === postId);
+    const post = posts.find((p) => p.id === postId);
     if (!post) return;
 
     const alreadyLiked = post.likes?.includes(user.uuid);
-    const action = alreadyLiked ? 'unlike' : 'like';
+    const action = alreadyLiked ? "unlike" : "like";
 
     // Optimistic update
     setPosts((prev) => {
@@ -140,21 +142,21 @@ export default function FeedPage() {
 
     try {
       const response = await fetch(`/api/posts/${postId}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           action,
           content: {
             userUuid: user.uuid,
-          }
+          },
         }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.message || 'Failed to update like');
+        throw new Error(data.message || "Failed to update like");
       }
 
       // Refresh user data to update points
@@ -175,9 +177,8 @@ export default function FeedPage() {
         });
         localStorage.setItem("feed_posts", JSON.stringify(updated));
       }
-
     } catch (err) {
-      console.error('Error updating like:', err);
+      console.error("Error updating like:", err);
       // Revert optimistic update on error
       setPosts((prev) => {
         return prev.map((p) => {
@@ -190,21 +191,22 @@ export default function FeedPage() {
           return p;
         });
       });
-      setError('Failed to update like');
+      setError("Failed to update like");
     }
   };
 
   //Handle photo edit
-  const handleFileChange = (file: File | null) => {
-  if (!file) return setImgPreview(null);
-  const reader = new FileReader();
-  reader.onload = () => {
-    setImgPreview(reader.result as string);
-    setEditingPost((prev) => prev && { ...prev, img: reader.result as string });
-  };
-  reader.readAsDataURL(file);
-};
-
+  // const handleFileChange = (file: File | null) => {
+  //   if (!file) return setImgPreview(null);
+  //   const reader = new FileReader();
+  //   reader.onload = () => {
+  //     setImgPreview(reader.result as string);
+  //     setEditingPost(
+  //       (prev) => prev && { ...prev, img: reader.result as string }
+  //     );
+  //   };
+  //   reader.readAsDataURL(file);
+  // };
 
   // Handle edit button click
   const startEdit = (post: Post) => {
@@ -224,9 +226,9 @@ export default function FeedPage() {
 
     try {
       const response = await fetch(`/api/posts/${editingPost.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           title: editTitle.trim(),
@@ -237,7 +239,7 @@ export default function FeedPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.message || 'Failed to update post');
+        throw new Error(data.message || "Failed to update post");
       }
 
       // Update local state
@@ -266,8 +268,8 @@ export default function FeedPage() {
       setEditBody("");
       setEditCode("");
     } catch (err) {
-      console.error('Error updating post:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update post');
+      console.error("Error updating post:", err);
+      setError(err instanceof Error ? err.message : "Failed to update post");
     } finally {
       setUpdating(false);
     }
@@ -303,75 +305,80 @@ export default function FeedPage() {
           </p>
         )}
 
-        {!loading && posts.map((post) => {
-          const isOwnPost = user && post.author === user.uuid;
-          const likesCount = post.likes?.length || 0;
-          const liked = user && post.likes?.includes(user.uuid);
+        {!loading &&
+          posts.map((post) => {
+            const isOwnPost = user && post.author === user.uuid;
+            const likesCount = post.likes?.length || 0;
+            const liked = user && post.likes?.includes(user.uuid);
 
-          return (
-            <div
-              key={post.id}
-              className="card bg-base-100 shadow-md border rounded-2xl p-5"
-            >
-              {/* Author and timestamp */}
-              <div className="flex justify-between items-center mb-3">
-                <p className="font-semibold text-primary">
-                  {post.authorName || "Unknown User"}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {new Date(post.createdAt).toLocaleString()}
-                </p>
-              </div>
-
-              {/* Post content */}
-              <h2 className="text-lg font-semibold mb-2">{post.title}</h2>
-              <p className="mb-3">{post.body}</p>
-
-              {post.img && (
-                <div className="overflow-hidden rounded-md border mb-3">
-                  <img
-                    src={post.img}
-                    alt="Post image"
-                    className="w-full object-cover max-h-72"
-                  />
+            return (
+              <div
+                key={post.id}
+                className="card bg-base-100 shadow-md border rounded-2xl p-5"
+              >
+                {/* Author and timestamp */}
+                <div className="flex justify-between items-center mb-3">
+                  <p className="font-semibold text-primary">
+                    {post.authorName || "Unknown User"}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(post.createdAt).toLocaleString()}
+                  </p>
                 </div>
-              )}
 
-              {post.code && (
-                <div className="mockup-code mb-3 w-full">
-                  {post.code.split("\n").map((line, i) => (
-                    <pre key={i} data-prefix="$">
-                      <code>{line || "\u00A0"}</code>
-                    </pre>
-                  ))}
-                </div>
-              )}
+                {/* Post content */}
+                <h2 className="text-lg font-semibold mb-2">{post.title}</h2>
+                <p className="mb-3">{post.body}</p>
 
-              {/* Likes and Edit */}
-              <div className="flex justify-between items-center text-sm mt-3">
-                <button
-                  onClick={() => handleLike(post.id)}
-                  disabled={!user || !!isOwnPost}
-                  className={`flex items-center gap-1 text-sm transition ${
-                    liked ? "text-red-500" : "text-gray-400 hover:text-red-500"
-                  } ${!user || isOwnPost ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <span className="text-lg">{liked ? "❤️" : "🤍"}</span>
-                  <span>{likesCount}</span>
-                </button>
-
-                {isOwnPost && (
-                  <button
-                    className="btn btn-ghost btn-xs text-primary"
-                    onClick={() => startEdit(post)}
-                  >
-                    Edit Post
-                  </button>
+                {post.img && (
+                  <div className="overflow-hidden rounded-md border mb-3">
+                    <img
+                      src={post.img}
+                      alt="Post image"
+                      className="w-full object-cover max-h-72"
+                    />
+                  </div>
                 )}
+
+                {post.code && (
+                  <div className="mockup-code mb-3 w-full">
+                    {post.code.split("\n").map((line, i) => (
+                      <pre key={i} data-prefix="$">
+                        <code>{line || "\u00A0"}</code>
+                      </pre>
+                    ))}
+                  </div>
+                )}
+
+                {/* Likes and Edit */}
+                <div className="flex justify-between items-center text-sm mt-3">
+                  <button
+                    onClick={() => handleLike(post.id)}
+                    disabled={!user || !!isOwnPost}
+                    className={`flex items-center gap-1 text-sm transition ${
+                      liked
+                        ? "text-red-500"
+                        : "text-gray-400 hover:text-red-500"
+                    } ${
+                      !user || isOwnPost ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <span className="text-lg">{liked ? "❤️" : "🤍"}</span>
+                    <span>{likesCount}</span>
+                  </button>
+
+                  {isOwnPost && (
+                    <button
+                      className="btn btn-ghost btn-xs text-primary"
+                      onClick={() => startEdit(post)}
+                    >
+                      Edit Post
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
       {/* Edit Modal */}
@@ -431,7 +438,7 @@ export default function FeedPage() {
                   <div className="mt-3 mockup-code w-full">
                     {editCode.split("\n").map((line, i) => (
                       <pre key={i} data-prefix="$">
-                        <code>{line || '\u00A0'}</code>
+                        <code>{line || "\u00A0"}</code>
                       </pre>
                     ))}
                   </div>
@@ -448,9 +455,9 @@ export default function FeedPage() {
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
-                  className={`btn btn-primary ${updating ? 'loading' : ''}`}
+                <button
+                  type="submit"
+                  className={`btn btn-primary ${updating ? "loading" : ""}`}
                   disabled={updating}
                 >
                   Save Changes
