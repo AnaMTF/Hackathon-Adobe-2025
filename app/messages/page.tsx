@@ -25,9 +25,26 @@ export default function Messages() {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", border: "1px solid #ccc" }}>
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        width: "100vw",
+        border: "1px solid #ccc",
+        overflow: "hidden"
+      }}
+    >
       {/* Contacts List */}
-      <div style={{ width: "250px", borderRight: "1px solid #ddd", padding: "1rem" }}>
+      <div
+        style={{
+          width: "250px",
+          borderRight: "1px solid #ddd",
+          padding: "1rem",
+          height: "100vh",
+          overflow: "hidden",
+          boxSizing: "border-box"
+        }}
+      >
         <h2>Contacts</h2>
         <ul style={{ listStyle: "none", padding: 0 }}>
           {contacts.map(contact => (
@@ -36,7 +53,9 @@ export default function Messages() {
               style={{
                 padding: "0.5rem",
                 cursor: "pointer",
-                background: selectedContact.id === contact.id ? "#f0f0f0" : "transparent"
+                background: selectedContact.id === contact.id ? "#cce4ff" : "transparent", // Darker color
+                color: selectedContact.id === contact.id ? "#000" : "inherit",             // Black text when selected
+                borderRadius: "8px"
               }}
               onClick={() => setSelectedContact(contact)}
             >
@@ -46,12 +65,36 @@ export default function Messages() {
         </ul>
       </div>
       {/* Chat Window */}
-      <div style={{ flex: 1, padding: "1rem", overflow: "auto", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          flex: 1,
+          padding: "1rem",
+          height: "100vh",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box"
+        }}
+      >
         <h2>Chat with {selectedContact.name}</h2>
-        <div style={{ flex: 1, marginBottom: "1rem", overflowY: "auto" }}>
+        <div
+          style={{
+            flex: 1,
+            marginBottom: "1rem",
+            overflowY: "auto"
+          }}
+        >
           {(messages[selectedContact.id] || []).map((msg, idx) => (
             <div key={idx} style={{ margin: "0.5rem 0", textAlign: "right" }}>
-              <div style={{ display: "inline-block", background: "#e0ffe0", padding: "0.5rem 1rem", borderRadius: "16px" }}>
+              <div
+                style={{
+                  display: "inline-block",
+                  background: "#cce4ff",
+                  color: "#003366",    
+                  padding: "0.5rem 1rem",
+                  borderRadius: "16px"
+                }}
+              >
                 {msg}
               </div>
             </div>

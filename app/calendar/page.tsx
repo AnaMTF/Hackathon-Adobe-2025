@@ -16,12 +16,9 @@ export default function Calendar() {
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   type Event = { name: string; details: string; date: string };
-  const [events, setEvents] = useState<Event[]>([
-    // Example: { name: "Team Meeting", details: "Discuss project", date: "2025-11-03" }
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [eventName, setEventName] = useState("");
   const [eventDetails, setEventDetails] = useState("");
-
 
   useEffect(() => {
     const picker = new Pikaday({
@@ -33,13 +30,12 @@ export default function Calendar() {
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
 
-  // Create array for calendar cells
+  // Calendar cell array
   const calendarCells = [];
-  // Empty cells for days before the 1st of the month
   for (let i = 0; i < firstDay; i++) {
     calendarCells.push(<div key={`empty-${i}`} className="aspect-square p-1" />);
   }
-  // Cells for each day of the month
+
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const hasEvent = events.some(event => event.date === dateStr);
@@ -61,7 +57,6 @@ export default function Calendar() {
     );
   }
 
-  // Navigation handlers
   const prevMonth = () => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
@@ -80,38 +75,57 @@ export default function Calendar() {
   };
 
   return (
-    <div className="flex flex-row items-start justify-center min-h-screen gap-8 w-full px-8">
-      {/* Calendar Section */}
-      <div className="flex flex-col items-center flex-[2]">
-        <div className="flex items-center mb-4 gap-4">
-          <button className="btn btn-outline" onClick={prevMonth}>
-            Prev
-          </button>
-          <span className="font-bold text-lg">
-            {new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" })} {currentYear}
-          </span>
-          <button className="btn btn-outline" onClick={nextMonth}>
-            Next
-          </button>
+    <div className="relative min-h-screen w-full px-8">
+      <div className={`flex flex-row items-start justify-center gap-8 w-full ${showModal ? "blur-sm" : ""}`}>
+        {/* Calendar */}
+        <div className="flex flex-col items-center flex-[2] bg-base-100 rounded-lg shadow p-4">
+          <div className="flex items-center mb-4 gap-4">
+            <button className="btn btn-outline" onClick={prevMonth}>
+              Prev
+            </button>
+            <span className="font-bold text-lg">
+              {new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" })} {currentYear}
+            </span>
+            <button className="btn btn-outline" onClick={nextMonth}>
+              Next
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-4 w-full max-w-3xl">
+            {daysOfWeek.map((day) => (
+              <div key={day} className="font-semibold text-center text-lg py-4">
+                {day}
+              </div>
+            ))}
+            {calendarCells}
+          </div>
         </div>
-        <div className="grid grid-cols-7 gap-4 w-full max-w-3xl">
-          {daysOfWeek.map((day) => (
-            <div key={day} className="font-semibold text-center text-lg py-4">
-              {day}
-            </div>
-          ))}
-          {calendarCells}
-        </div>
-      </div>
 
-      {/* Upcoming Events Section */}
-      <div className="flex-[1] w-full max-w-xs bg-base-200 rounded-lg shadow-lg p-6">
-        {/* Today's Events Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4">Today's Events</h2>
+        <div className="flex-[1] w-full max-w-xs bg-base-200 rounded-lg shadow-lg p-6 text-base-content">
+          {/* Today's Events*/}
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4">Today's Events</h2>
+            <ul>
+              {events
+                .filter(e => e.date === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`)
+                .map((event, idx) => (
+                  <li key={idx} className="mb-4">
+                    <div className="font-semibold">{event.name}</div>
+                    <div className="text-sm text-gray-500">{event.details}</div>
+                    <div className="text-xs text-gray-400">{event.date}</div>
+                  </li>
+                ))}
+              {events.filter(e => e.date === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`).length === 0 && (
+                <li className="text-gray-500">No events today.</li>
+              )}
+            </ul>
+          </div>
+          {/* Upcoming events*/}
+          <h2 className="text-xl font-bold mb-4">Upcoming Events</h2>
           <ul>
             {events
-              .filter(e => e.date === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`)
+              .filter(e => new Date(e.date) > today)
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+              .slice(0, 3)
               .map((event, idx) => (
                 <li key={idx} className="mb-4">
                   <div className="font-semibold">{event.name}</div>
@@ -119,35 +133,16 @@ export default function Calendar() {
                   <div className="text-xs text-gray-400">{event.date}</div>
                 </li>
               ))}
-            {events.filter(e => e.date === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`).length === 0 && (
-              <li className="text-gray-500">No events today.</li>
+            {events.filter(e => new Date(e.date) > today).length === 0 && (
+              <li className="text-gray-500">No upcoming events.</li>
             )}
           </ul>
         </div>
-        {/* Upcoming Events Section */}
-        <h2 className="text-xl font-bold mb-4">Upcoming Events</h2>
-        <ul>
-          {events
-            .filter(e => new Date(e.date) > today)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .slice(0, 3)
-            .map((event, idx) => (
-              <li key={idx} className="mb-4">
-                <div className="font-semibold">{event.name}</div>
-                <div className="text-sm text-gray-500">{event.details}</div>
-                <div className="text-xs text-gray-400">{event.date}</div>
-              </li>
-            ))}
-          {events.filter(e => new Date(e.date) > today).length === 0 && (
-            <li className="text-gray-500">No upcoming events.</li>
-          )}
-        </ul>
       </div>
-
-      {/* Modal for adding event */}
+      {/* Adding event */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-grey p-6 rounded shadow-lg w-80">
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-base-100 p-6 rounded shadow-lg w-80 text-base-content">
             <h2 className="text-lg font-bold mb-2">Add Event</h2>
             <form
               onSubmit={e => {
