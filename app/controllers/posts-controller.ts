@@ -245,6 +245,14 @@ export async function likePost(userUuid: string, request: Request, postId?: stri
     // Create like
     await PostLike.create({ postUuid: extractedPostId, userUuid });
 
+    // Award 1000 points to the post author
+    const postAuthor = await User.findByPk(post.authorUuid);
+    if (postAuthor) {
+      await postAuthor.update({
+        points: postAuthor.points + 1000
+      });
+    }
+
     return createResponse(null, 200, 'Post liked successfully');
   } catch (error) {
     return createErrorResponse(error);
@@ -268,7 +276,20 @@ export async function unlikePost(userUuid: string, request: Request, postId?: st
       return createErrorResponse(new Error('Like not found'), 404);
     }
 
+    // Get the post to find the author
+    const post = await Post.findByPk(extractedPostId);
+    
     await like.destroy();
+
+    // Deduct 1000 points from the post author
+    if (post) {
+      const postAuthor = await User.findByPk(post.authorUuid);
+      if (postAuthor && postAuthor.points >= 1000) {
+        await postAuthor.update({
+          points: postAuthor.points - 1000
+        });
+      }
+    }
 
     return createResponse(null, 200, 'Post unliked successfully');
   } catch (error) {

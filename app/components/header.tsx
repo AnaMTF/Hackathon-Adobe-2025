@@ -24,21 +24,18 @@ export default function Header() {
     return 0;
   });
 
-  // Points balance (stored in localStorage as 'user_points')
-  const [userPoints, setUserPoints] = useState<number>(() => {
+  // Get points from user object or fallback to localStorage
+  const userPoints = user?.points ?? (() => {
     try {
       if (typeof window !== 'undefined') {
         const v = localStorage.getItem('user_points');
         if (v) return Number(v);
-        // default initial points
-        localStorage.setItem('user_points', String(5000));
-        return 5000;
       }
     } catch {
-      return 5000;
+      // ignore
     }
-    return 5000;
-  });
+    return 1000;
+  })();
 
   // Cart item count (stored in localStorage as 'cart_items')
   const [cartCount, setCartCount] = useState<number>(() => {
@@ -60,9 +57,6 @@ export default function Header() {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'unread_messages' && e.newValue) {
         setUnreadCount(Number(e.newValue));
-      }
-      if (e.key === 'user_points' && e.newValue) {
-        setUserPoints(Number(e.newValue));
       }
       if (e.key === 'cart_items') {
         try {
@@ -96,21 +90,6 @@ export default function Header() {
 
     window.addEventListener('cart_updated', onCartUpdated as EventListener);
     return () => window.removeEventListener('cart_updated', onCartUpdated as EventListener);
-  }, []);
-
-  // Listen for same-tab points updates
-  useEffect(() => {
-    const onPointsUpdated = () => {
-      try {
-        const v = localStorage.getItem('user_points');
-        setUserPoints(v ? Number(v) : 0);
-      } catch {
-        // ignore
-      }
-    };
-
-    window.addEventListener('points_updated', onPointsUpdated as EventListener);
-    return () => window.removeEventListener('points_updated', onPointsUpdated as EventListener);
   }, []);
 
   // Setup SSE connection for real-time message notifications

@@ -38,7 +38,7 @@ type Post = {
 };
 
 export default function FeedPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -156,6 +156,9 @@ export default function FeedPage() {
         const data = await response.json();
         throw new Error(data.message || 'Failed to update like');
       }
+
+      // Refresh user data to update points
+      await refreshUser();
 
       // Update localStorage as well
       const raw = localStorage.getItem("feed_posts");
