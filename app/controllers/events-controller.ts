@@ -3,6 +3,7 @@ import { User } from '../models/user-model';
 import { ensureDbReady } from '../../lib/database';
 import { Op } from 'sequelize';
 import { EventActionSchema } from '../schemas/event-schemas';
+import { eventSSEManager } from '../../lib/event-sse';
 
 // Do not auto-initialize at module load to avoid races; await ensureDbReady() inside handlers
 
@@ -92,10 +93,13 @@ export async function handleEventAction(request: Request) {
     await ensureDbReady();
     const body = await request.json();
     
+    console.log('[handleEventAction] Received body:', JSON.stringify(body, null, 2));
+    
     // Validate request body against schema
     const validationResult = EventActionSchema.safeParse(body);
     
     if (!validationResult.success) {
+      console.error('[handleEventAction] Validation failed:', validationResult.error.issues);
       return createErrorResponse(
         new Error(`Validation error: ${validationResult.error.issues.map(i => i.message).join(', ')}`),
         400
@@ -118,19 +122,25 @@ export async function handleEventAction(request: Request) {
 // Internal function to create an event
 async function createEventInternal(eventData: { name: string; details?: string; date: string; creatorUuid: string }) {
   try {
+    console.log('[createEventInternal] Starting event creation with data:', eventData);
+    
     // Verify creator exists
     const creator = await User.findByPk(eventData.creatorUuid);
     if (!creator) {
+      console.error('[createEventInternal] Creator user not found:', eventData.creatorUuid);
       return createErrorResponse(new Error('Creator user not found'), 404);
     }
+    console.log('[createEventInternal] Creator found:', creator.uuid);
 
     // Create the event
+    console.log('[createEventInternal] Creating event in database...');
     const event = await Event.create({
       name: eventData.name,
       details: eventData.details,
       date: new Date(eventData.date),
       creatorUuid: eventData.creatorUuid,
     });
+    console.log('[createEventInternal] Event created with UUID:', event.uuid);
 
     // Fetch the created event with creator info
     const createdEvent = await Event.findByPk(event.uuid, {
@@ -140,9 +150,16 @@ async function createEventInternal(eventData: { name: string; details?: string; 
         attributes: { exclude: ['parola'] },
       }],
     });
+    console.log('[createEventInternal] Event fetched with creator info');
+
+    // Broadcast SSE notification to all connected clients
+    console.log('[createEventInternal] Broadcasting SSE notification...');
+    eventSSEManager.notifyEventCreated(createdEvent);
+    console.log('[createEventInternal] SSE notification sent');
 
     return createResponse(createdEvent, 201, 'Event created successfully');
   } catch (error) {
+    console.error('[createEventInternal] Error creating event:', error);
     return createErrorResponse(error);
   }
 }
@@ -222,6 +239,9 @@ export async function updateEvent(eventId: string, request: Request) {
       }],
     });
 
+    // Broadcast SSE notification to all connected clients
+    eventSSEManager.notifyEventUpdated(updatedEvent);
+
     return createResponse(updatedEvent, 200, 'Event updated successfully');
   } catch (error) {
     return createErrorResponse(error);
@@ -257,6 +277,9 @@ export async function deleteEvent(eventId: string, request: Request) {
     }
 
     await event.destroy();
+
+    // Broadcast SSE notification to all connected clients
+    eventSSEManager.notifyEventDeleted(eventId);
 
     return createResponse({ uuid: eventId }, 200, 'Event deleted successfully');
   } catch (error) {

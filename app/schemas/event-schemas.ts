@@ -5,7 +5,7 @@ export const EventCreateSchema = z.object({
   action: z.literal('create'),
   fields: z.object({
     name: z.string().min(1, 'Event name is required').max(255, 'Event name must not exceed 255 characters'),
-    details: z.string().optional(),
+    details: z.string().optional().or(z.literal('')),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
     creatorUuid: z.string().uuid('Invalid creator UUID'),
   }),
