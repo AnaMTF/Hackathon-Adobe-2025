@@ -2,7 +2,7 @@
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function EditUserPage() {
   const { user, refreshUser } = useAuth();
@@ -16,6 +16,10 @@ export default function EditUserPage() {
     location: "",
   });
 
+  const [profilePreview, setProfilePreview] = useState<string | null>(user?.poza || null);
+  const [profileBase64, setProfileBase64] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     if (user) {
       setFormData({
@@ -28,22 +32,44 @@ export default function EditUserPage() {
     }
   }, [user]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleFileChange = (file?: File | null) => {
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    const base64String = reader.result as string;
+    setProfileBase64(base64String); // will be sent to API
+    setProfilePreview(base64String); // show preview
+  };
+  reader.readAsDataURL(file);
+};
+
+  // ← Add or replace your handleSubmit here
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const response = await fetch("/api/auth/update", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+    try {
+      const response = await fetch("/api/auth/update", {
+  method: "PUT",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: user!.email, ...formData, ...(profileBase64 ? { poza: profileBase64 } : {}) }),
+});
 
-    if (response.ok) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to update profile");
+        return;
+      }
+
+      // Refresh user context
       await refreshUser();
       router.push("/user");
-    } else {
+    } catch (err) {
+      console.error(err);
       alert("Failed to update profile");
     }
   };
@@ -60,6 +86,27 @@ export default function EditUserPage() {
         className="card w-full max-w-2xl bg-base-100 shadow-xl p-10 space-y-6"
       >
         <h1 className="text-3xl font-bold mb-6 text-center">Edit Your Data</h1>
+
+        <div className="flex flex-col items-center mb-6">
+            <div
+                className="w-32 h-32 rounded-full overflow-hidden cursor-pointer border-2 border-primary"
+                onClick={() => fileInputRef.current?.click()}
+                >
+                {profilePreview ? (
+                    <img src={profilePreview} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+            <div className="w-full h-full flex items-center justify-center bg-base-200 text-gray-500">Click to add photo</div> )}
+        </div>
+
+        <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+        />
+        </div>
+
 
         {/* Full Name */}
         <div className="form-control space-y-2">
