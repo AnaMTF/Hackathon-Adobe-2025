@@ -13,6 +13,7 @@ interface User {
   telefon?: string;
   location?: string;
   points: number;
+  status?: 'online' | 'away' | 'busy' | 'offline';
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -144,6 +144,15 @@ export default function Header() {
             // Also update localStorage so it persists
             localStorage.setItem('unread_messages', String(newCount));
             break;
+            
+          case 'userStatusChanged':
+            console.log('[Header] User status changed:', message.data);
+            // If it's the current user's status that changed, refresh user data
+            if (message.data.uuid === user.uuid) {
+              console.log('[Header] Current user status changed, refreshing...');
+              refreshUser();
+            }
+            break;
         }
       } catch (error) {
         console.error('[Header] Error parsing SSE message:', error);
@@ -159,7 +168,7 @@ export default function Header() {
       console.log('[Header] Closing message SSE connection');
       eventSource.close();
     };
-  }, [user]); // Reconnect if user changes
+  }, [user, refreshUser]); // Reconnect if user changes
 
   const handleLogout = async () => {
     try {
@@ -306,25 +315,37 @@ export default function Header() {
 
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-sm gap-2">
-                  {user.poza ? (
-                    <Image
-                      src={user.poza}
-                      alt={user.numeFullName}
-                      width={24}
-                      height={24}
-                      className="rounded-full"
-                    />
-                  ) : (
-                    <div className="avatar placeholder">
-                      <div className="bg-neutral text-neutral-content rounded-full w-6">
-                        <span className="text-xs">
-                          {user.numeFullName?.charAt(0) ||
-                            user.email?.charAt(0) ||
-                            "?"}
-                        </span>
+                  <div className="relative">
+                    {user.poza ? (
+                      <Image
+                        src={user.poza}
+                        alt={user.numeFullName}
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="avatar placeholder">
+                        <div className="bg-neutral text-neutral-content rounded-full w-6">
+                          <span className="text-xs">
+                            {user.numeFullName?.charAt(0) ||
+                              user.email?.charAt(0) ||
+                              "?"}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {/* Status indicator */}
+                    <span 
+                      className={`absolute -bottom-0.5 -right-0.5 inline-flex h-2.5 w-2.5 rounded-full border border-base-200 ${
+                        user.status === 'online' ? 'bg-success' :
+                        user.status === 'away' ? 'bg-warning' :
+                        user.status === 'busy' ? 'bg-error' :
+                        'bg-neutral'
+                      }`}
+                      aria-hidden
+                    />
+                  </div>
                   <span className="hidden md:inline">
                     {user.numeFullName?.split(" ")[0] ||
                       user.email?.split("@")[0] ||
@@ -333,31 +354,43 @@ export default function Header() {
                 </label>
                 <ul
                   tabIndex={0}
-                  className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2"
+                  className="dropdown-content z-1 menu p-2 shadow bg-base-100 rounded-box w-52 mt-2"
                 >
                     <li className="menu-title">
                       <span>Set status</span>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('online')} className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleSetStatus('online')} 
+                        className={`flex items-center gap-2 ${user.status === 'online' ? 'active' : ''}`}
+                      >
                         <span className="inline-block w-2 h-2 rounded-full bg-success" aria-hidden />
                         <span>Online</span>
                       </button>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('away')} className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleSetStatus('away')} 
+                        className={`flex items-center gap-2 ${user.status === 'away' ? 'active' : ''}`}
+                      >
                         <span className="inline-block w-2 h-2 rounded-full bg-warning" aria-hidden />
                         <span>Away</span>
                       </button>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('busy')} className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleSetStatus('busy')} 
+                        className={`flex items-center gap-2 ${user.status === 'busy' ? 'active' : ''}`}
+                      >
                         <span className="inline-block w-2 h-2 rounded-full bg-error" aria-hidden />
                         <span>Busy</span>
                       </button>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('offline')} className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleSetStatus('offline')} 
+                        className={`flex items-center gap-2 ${user.status === 'offline' ? 'active' : ''}`}
+                      >
                         <span className="inline-block w-2 h-2 rounded-full bg-neutral" aria-hidden />
                         <span>Offline</span>
                       </button>

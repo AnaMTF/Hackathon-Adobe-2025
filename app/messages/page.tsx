@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
+import Image from "next/image";
 
 type UserStatus = "online" | "away" | "busy" | "offline";
 
@@ -39,7 +40,7 @@ function statusColor(s: UserStatus) {
 
 export default function Messages() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [chats, setChats] = useState<Conversation[]>([]);
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -126,7 +127,14 @@ export default function Messages() {
         }
         
         if (data.type === 'userStatusChanged') {
-          console.log('User status changed, refreshing conversations...');
+          console.log('User status changed:', data.data);
+          
+          // If current user's status changed, refresh user data
+          if (data.data.uuid === user.uuid) {
+            console.log('Current user status changed, refreshing...');
+            refreshUser();
+          }
+          
           // Refresh conversations to update status indicators
           fetch(`/api/messages/conversations?user=${user.uuid}`)
             .then(res => res.json())
@@ -145,7 +153,7 @@ export default function Messages() {
     eventSource.onmessage = handleMessage;
 
     return () => eventSource.close();
-  }, [user]);
+  }, [user, refreshUser]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -167,7 +175,25 @@ export default function Messages() {
   return (
     <main className="min-h-screen bg-base-200 p-6">
       <div className="container mx-auto">
-        <h1 className="text-2xl font-bold mb-4">Messages</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Messages</h1>
+          
+          {/* Current user status indicator */}
+          {user && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-neutral">Your status:</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-base-100 border border-base-300">
+                <span 
+                  className={`inline-block w-2 h-2 rounded-full ${statusColor(user.status || 'online')}`}
+                  aria-hidden
+                />
+                <span className="font-medium capitalize">
+                  {user.status || 'online'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="card bg-base-100 shadow-lg">
           <div className="p-4 border-b border-base-200 relative">
@@ -221,7 +247,13 @@ export default function Messages() {
                     <div className="avatar">
                       <div className="w-12 h-12 rounded-full overflow-hidden">
                         {c.partner.poza ? (
-                          <img src={c.partner.poza} alt={c.partner.numeFullName} className="w-full h-full object-cover" />
+                          <Image 
+                            src={c.partner.poza} 
+                            alt={c.partner.numeFullName} 
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover" 
+                          />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-semibold">
                             {c.partner.numeFullName
