@@ -20,6 +20,7 @@ export default function FeedPage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [imgPreview, setImgPreview] = useState<string | null>(null);
 
+
   // Load posts from localStorage
   useEffect(() => {
     const raw = localStorage.getItem("feed_posts");
@@ -36,6 +37,14 @@ export default function FeedPage() {
     return () =>
       window.removeEventListener("feed_updated", handleFeedUpdate as EventListener);
   }, []);
+
+  useEffect(() => {
+  if (editingPost?.img) {
+    setImgPreview(editingPost.img);
+  } else {
+    setImgPreview(null);
+  }
+}, [editingPost]);
 
   // Like logic
   const handleLike = (id: string) => {
@@ -55,33 +64,46 @@ export default function FeedPage() {
     });
   };
 
+  //Handle photo edit
+  const handleFileChange = (file: File | null) => {
+  if (!file) return setImgPreview(null);
+  const reader = new FileReader();
+  reader.onload = () => {
+    setImgPreview(reader.result as string);
+    setEditingPost((prev) => prev && { ...prev, img: reader.result as string });
+  };
+  reader.readAsDataURL(file);
+};
+
+
   // Handle edit button click
   const startEdit = (post: Post) => {
     setEditingPost(post);
     setImgPreview(post.img || null);
   };
 
-  // Handle file change in modal
-  const handleFileChange = (file?: File | null) => {
-    if (!file) return setImgPreview(null);
-    const reader = new FileReader();
-    reader.onload = () => setImgPreview(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
   // Save edited post
   const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPost) return;
+  e.preventDefault();
+  if (!editingPost) return;
 
-    const updatedPosts = posts.map((p) =>
-      p.id === editingPost.id ? { ...editingPost, img: imgPreview } : p
-    );
-    setPosts(updatedPosts);
-    localStorage.setItem("feed_posts", JSON.stringify(updatedPosts));
-    setEditingPost(null);
-    setImgPreview(null);
-  };
+  setPosts((prev) =>
+    prev.map((post) =>
+      post.id === editingPost.id ? { ...post, ...editingPost } : post
+    )
+  );
+
+  localStorage.setItem(
+    "feed_posts",
+    JSON.stringify(
+      posts.map((post) =>
+        post.id === editingPost.id ? { ...post, ...editingPost } : post
+      )
+    )
+  );
+
+  setEditingPost(null);
+};
 
   return (
     <main className="container mx-auto px-4 py-6 flex justify-center">
@@ -176,8 +198,8 @@ export default function FeedPage() {
 
     {/* Modal content */}
     <div
-      className="bg-base-100 p-6 rounded-lg shadow-lg w-full max-w-lg relative z-10"
-      onClick={(e) => e.stopPropagation()} // <-- important!
+      className="bg-base-100 p-6 rounded-sm shadow-lg w-full max-w-lg relative z-10"
+      onClick={(e) => e.stopPropagation()}
     >
       <h2 className="text-xl font-semibold mb-4">Edit Post</h2>
 
@@ -192,7 +214,7 @@ export default function FeedPage() {
         />
         {/* Body */}
         <textarea
-          className="textarea textarea-bordered w-full h-24"
+          className="textarea textarea-bordered w-full h-24 pr-2 pt-1 pb-1 rounded-md"
           value={editingPost.body}
           onChange={(e) =>
             setEditingPost({ ...editingPost, body: e.target.value })
@@ -200,12 +222,35 @@ export default function FeedPage() {
         />
         {/* Code snippet */}
         <textarea
-          className="textarea textarea-bordered w-full h-24"
+          className="textarea textarea-bordered w-full h-24 pr-2 pt-1 pb-1 rounded-md"
           value={editingPost.code || ""}
           onChange={(e) =>
             setEditingPost({ ...editingPost, code: e.target.value || null })
           }
         />
+
+        {/* Image input */}
+        <div>
+          <label className="label">
+            <span className="label-text">Image (optional)</span>
+          </label>
+        <input
+          type="file"
+          accept="image/*"
+          className="file-input file-input-bordered w-full"
+          onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+        />
+        {imgPreview && (
+          <div className="mt-3 overflow-hidden rounded-md border">
+            <img
+              src={imgPreview}
+              alt="Preview"
+              className="w-full object-cover max-h-60"
+            />
+          </div>
+        )}
+      </div>
+
         {/* Save / Cancel buttons */}
         <div className="flex justify-end gap-2">
           <button
