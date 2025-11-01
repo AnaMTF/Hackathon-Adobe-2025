@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { MERCH } from "../shop/data";
+// rewards will be fetched from the API so we can reflect DB-backed items & stock
 
 type CartItem = { id: string; qty: number };
 
@@ -17,6 +17,8 @@ export default function CheckoutPage() {
     }
     return [];
   });
+
+  const [rewards, setRewards] = useState<any[]>([]);
 
   const [points, setPoints] = useState<number>(() => {
     try {
@@ -41,10 +43,31 @@ export default function CheckoutPage() {
     }
   }, [cart]);
 
-  const findMerch = (id: string) => MERCH.find((m) => m.id === id);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/rewards');
+        if (!res.ok) throw new Error('Failed to fetch rewards');
+        const data = await res.json();
+        if (data.success && data.data && data.data.rewards) {
+          if (!mounted) return;
+          setRewards(data.data.rewards);
+        }
+      } catch (err) {
+        console.error('Failed to load rewards', err);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  const findReward = (id: string) => {
+    return rewards.find((r) => r.id === id || r.slug === id);
+  };
 
   const refundItem = (id: string) => {
-    const item = findMerch(id);
+  const item = findReward(id);
     if (!item) return;
     setCart((prev) => {
       const copy = [...prev];
@@ -52,7 +75,7 @@ export default function CheckoutPage() {
       if (idx >= 0) {
         const qty = copy[idx].qty;
         copy.splice(idx, 1);
-        const refund = item.price * qty;
+  const refund = item.price * qty;
         const newPoints = points + refund;
         setPoints(newPoints);
         try {
@@ -67,7 +90,7 @@ export default function CheckoutPage() {
   const clearCart = () => {
     // refund all items
     const totalRefund = cart.reduce((s, it) => {
-      const m = findMerch(it.id);
+      const m = findReward(it.id);
       return s + (m ? m.price * it.qty : 0);
     }, 0);
     const newPoints = points + totalRefund;
@@ -80,17 +103,43 @@ export default function CheckoutPage() {
   };
 
   const confirmPurchase = () => {
-    // Items already deducted from points on add; confirming finalizes and clears the cart
-    setCart([]);
-    try {
-      localStorage.setItem("cart_items", JSON.stringify([]));
-      window.dispatchEvent(new CustomEvent("cart_updated"));
-    } catch {}
-    window.alert("Purchase confirmed — your items will be processed!");
+    // Call the checkout API to decrement stock server-side
+    (async () => {
+      try {
+        const res = await fetch('/api/rewards/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: cart }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          window.alert('Checkout failed: ' + (data?.message || 'Unknown error'));
+          return;
+        }
+
+        // On success, clear cart (points were already deducted when items were added)
+        setCart([]);
+        try {
+          localStorage.setItem('cart_items', JSON.stringify([]));
+          window.dispatchEvent(new CustomEvent('cart_updated'));
+        } catch {}
+
+        window.alert('Purchase confirmed — your items will be processed!');
+        // refresh local rewards to reflect new stock
+        const refreshed = await fetch('/api/rewards');
+        if (refreshed.ok) {
+          const d = await refreshed.json();
+          if (d.success && d.data && d.data.rewards) setRewards(d.data.rewards);
+        }
+      } catch (err) {
+        console.error('Checkout error', err);
+        window.alert('Checkout failed — see console for details.');
+      }
+    })();
   };
 
   const items = cart.map((it) => {
-    const m = findMerch(it.id);
+    const m = findReward(it.id);
     return { ...m, qty: it.qty } as any;
   });
 
@@ -114,8 +163,9 @@ export default function CheckoutPage() {
                 <img src={it.img} alt={it.title} className="w-24 h-24 object-cover rounded" />
                 <div className="flex-1">
                   <h3 className="font-semibold">{it.title}</h3>
-                  <p className="text-sm opacity-80">{it.desc}</p>
-                  <div className="text-sm mt-2">Price: <strong>{it.price} pts</strong> × {it.qty}</div>
+                      <p className="text-sm opacity-80">{it.description}</p>
+                      <div className="text-sm mt-2">Price: <strong>{it.price} pts</strong> × {it.qty}</div>
+                      <div className="text-sm mt-1">Stock: <strong>{it.stock ?? 0}</strong></div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <button className="btn btn-sm btn-ghost" onClick={() => refundItem(it.id)}>Remove (refund)</button>
