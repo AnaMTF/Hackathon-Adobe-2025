@@ -19,7 +19,15 @@ type ApiPost = {
     jobTitle?: string;
   };
   likes?: { userUuid: string }[];
-  comments?: { userUuid: string; text: string }[];
+  comments?: { 
+    userUuid: string; 
+    text: string;
+    user?: {
+      uuid: string;
+      numeFullName: string;
+      poza?: string;
+    };
+  }[];
   favorites?: { userUuid: string }[];
 };
 
@@ -101,7 +109,7 @@ export default function FeedPage() {
     likes: apiPost.likes?.map((l) => l.userUuid) || [],
     comments: apiPost.comments?.map((c) => ({
       userUuid: c.userUuid,
-      username: undefined, // will resolve when rendering
+      username: c.user?.numeFullName || "Unknown User",
       text: c.text,
     })),
   });

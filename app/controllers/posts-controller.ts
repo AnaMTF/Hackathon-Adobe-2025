@@ -62,6 +62,13 @@ export async function getAllPosts(request: Request) {
           model: PostComment,
           as: 'comments',
           attributes: ['id', 'userUuid', 'text', 'createdAt'],
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['uuid', 'numeFullName', 'poza'],
+            }
+          ],
         },
         {
           model: PostFavorite,

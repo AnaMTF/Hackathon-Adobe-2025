@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../../lib/database';
+import { User } from './user-model';
 
 // PostLike attributes interface
 export interface PostLikeAttributes {
@@ -192,5 +193,21 @@ PostFavorite.init(
 );
 
 const postInteractions = { PostLike, PostComment, PostFavorite };
+
+// Setup associations with User model
+PostComment.belongsTo(User, {
+  foreignKey: 'userUuid',
+  as: 'user',
+});
+
+PostLike.belongsTo(User, {
+  foreignKey: 'userUuid',
+  as: 'user',
+});
+
+PostFavorite.belongsTo(User, {
+  foreignKey: 'userUuid',
+  as: 'user',
+});
 
 export default postInteractions;
