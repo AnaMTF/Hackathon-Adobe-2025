@@ -24,23 +24,23 @@ export interface PostAttributes {
 // Optional attributes for creation
 type PostCreationAttributes = Optional<PostAttributes, 'uuid' | 'event' | 'timestamp' | 'createdAt' | 'updatedAt'>;
 
-// Post model class
+// Post model class - DO NOT declare public fields, they shadow Sequelize getters/setters
 export class Post extends Model<PostAttributes, PostCreationAttributes> implements PostAttributes {
-  public uuid!: string;
-  public authorUuid!: string;
-  public poze!: string[];
-  public text!: string;
-  public tags!: string[];
-  public event?: EventInfo;
-  public timestamp!: Date;
+  declare uuid: string;
+  declare authorUuid: string;
+  declare poze: string[];
+  declare text: string;
+  declare tags: string[];
+  declare event?: EventInfo;
+  declare timestamp: Date;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
   // Association methods
-  public getAuthor!: () => Promise<User>;
-  public setAuthor!: (user: User) => Promise<void>;
+  declare getAuthor: () => Promise<User>;
+  declare setAuthor: (user: User) => Promise<void>;
 }
 
 // Initialize the Post model

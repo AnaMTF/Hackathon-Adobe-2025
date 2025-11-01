@@ -78,8 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.message || 'Login failed');
     }
 
+    // Set user immediately from login response
     setUser(data.data.user);
+    setLoading(false);
+    
+    // Navigate to feed
     router.push('/feed');
+    
+    // Force a refresh of user data to ensure consistency
+    setTimeout(() => {
+      checkAuth();
+    }, 100);
   };
 
   const signup = async (userData: SignupData) => {
@@ -95,8 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.message || 'Signup failed');
     }
 
+    // Set user immediately from signup response
     setUser(data.data.user);
+    setLoading(false);
+    
+    // Navigate to feed
     router.push('/feed');
+    
+    // Force a refresh of user data to ensure consistency
+    setTimeout(() => {
+      checkAuth();
+    }, 100);
   };
 
   const logout = async () => {

@@ -19,21 +19,21 @@ export interface UserAttributes {
 // Optional attributes for creation (uuid will be auto-generated)
 type UserCreationAttributes = Optional<UserAttributes, 'uuid' | 'poza' | 'telefon' | 'location' | 'createdAt' | 'updatedAt'>;
 
-// User model class
+// User model class - DO NOT declare public fields, they shadow Sequelize getters/setters
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public uuid!: string;
-  public numeFullName!: string;
-  public email!: string;
-  public parola!: string;
-  public poza?: string;
-  public telefon?: string;
-  public departament!: string;
-  public jobTitle!: string;
-  public location?: string;
+  declare uuid: string;
+  declare numeFullName: string;
+  declare email: string;
+  declare parola: string;
+  declare poza?: string;
+  declare telefon?: string;
+  declare departament: string;
+  declare jobTitle: string;
+  declare location?: string;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 // Initialize the User model

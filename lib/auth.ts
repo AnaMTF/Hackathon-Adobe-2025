@@ -32,9 +32,12 @@ export async function comparePassword(password: string, hashedPassword: string):
  * Generate a JWT token for a user
  */
 export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  console.log('[generateToken] Creating token with payload:', JSON.stringify(payload, null, 2));
+  const token = jwt.sign(payload, JWT_SECRET, {
     expiresIn: TOKEN_EXPIRATION,
   });
+  console.log('[generateToken] Token created successfully');
+  return token;
 }
 
 /**

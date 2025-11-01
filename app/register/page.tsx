@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
 
 function passwordStrength(pw: string) {
   let score = 0;
@@ -28,6 +29,7 @@ export default function Register() {
   const [profileBase64, setProfileBase64] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
+  const { signup } = useAuth();
 
   const strength = passwordStrength(password);
 
@@ -88,33 +90,19 @@ export default function Register() {
 
     setLoading(true);
     try {
-      // Send data to API route for registration
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          numeFullName: fullName,
-          email: email,
-          parola: password,
-          departament: department,
-          jobTitle: jobTitle,
-          telefon: phone || '',
-          location: location || '',
-          poza: profileBase64 || '', // Use base64 string instead of preview URL
-        }),
+      // Use AuthContext signup method which updates user state
+      await signup({
+        numeFullName: fullName,
+        email: email,
+        parola: password,
+        departament: department,
+        jobTitle: jobTitle,
+        telefon: phone || '',
+        location: location || '',
+        poza: profileBase64 || '', // Use base64 string instead of preview URL
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to register');
-      }
-
-      // After successful registration, user is automatically logged in
-      // Navigate to feed
-      router.push('/feed');
+      
+      // signup() handles navigation and user state update
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register");
     } finally {

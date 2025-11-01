@@ -13,15 +13,15 @@ export interface PostLikeAttributes {
 // Optional attributes for creation
 type PostLikeCreationAttributes = Optional<PostLikeAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
-// PostLike model class
+// PostLike model class - DO NOT declare public fields, they shadow Sequelize getters/setters
 export class PostLike extends Model<PostLikeAttributes, PostLikeCreationAttributes> implements PostLikeAttributes {
-  public id!: number;
-  public postUuid!: string;
-  public userUuid!: string;
+  declare id: number;
+  declare postUuid: string;
+  declare userUuid: string;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 // Initialize the PostLike model
@@ -76,16 +76,16 @@ export interface PostCommentAttributes {
 // Optional attributes for creation
 type PostCommentCreationAttributes = Optional<PostCommentAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
-// PostComment model class
+// PostComment model class - DO NOT declare public fields, they shadow Sequelize getters/setters
 export class PostComment extends Model<PostCommentAttributes, PostCommentCreationAttributes> implements PostCommentAttributes {
-  public id!: number;
-  public postUuid!: string;
-  public userUuid!: string;
-  public text!: string;
+  declare id: number;
+  declare postUuid: string;
+  declare userUuid: string;
+  declare text: string;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 // Initialize the PostComment model
@@ -141,15 +141,15 @@ export interface PostFavoriteAttributes {
 // Optional attributes for creation
 type PostFavoriteCreationAttributes = Optional<PostFavoriteAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
-// PostFavorite model class
+// PostFavorite model class - DO NOT declare public fields, they shadow Sequelize getters/setters
 export class PostFavorite extends Model<PostFavoriteAttributes, PostFavoriteCreationAttributes> implements PostFavoriteAttributes {
-  public id!: number;
-  public postUuid!: string;
-  public userUuid!: string;
+  declare id: number;
+  declare postUuid: string;
+  declare userUuid: string;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 // Initialize the PostFavorite model
