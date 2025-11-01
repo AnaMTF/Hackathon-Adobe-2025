@@ -35,6 +35,7 @@ type Post = {
   authorName?: string;
   authorPhoto?: string;
   likes?: string[];
+  comments?: { userUuid: string; username?: string; text: string }[];
 };
 
 export default function FeedPage() {
@@ -48,23 +49,64 @@ export default function FeedPage() {
   const [editCode, setEditCode] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  // Transform API post to display format
-  const transformApiPost = (apiPost: ApiPost): Post => {
-    return {
-      id: apiPost.uuid,
-      title: apiPost.title,
-      body: apiPost.body,
-      img: apiPost.image || null,
-      code: apiPost.code || null,
-      createdAt: new Date(apiPost.timestamp).getTime(),
-      author: apiPost.authorUuid,
-      authorName: apiPost.author?.numeFullName || "Unknown User",
-      authorPhoto: apiPost.author?.poza,
-      likes: apiPost.likes?.map((l) => l.userUuid) || [],
-    };
+  // Comments state
+  const [newCommentText, setNewCommentText] = useState<{ [postId: string]: string }>({});
+
+  /** Add a comment to a post */
+  const handleAddComment = async (postId: string) => {
+    if (!user) return;
+    const text = newCommentText[postId]?.trim();
+    if (!text) return;
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "comment",
+          content: { userUuid: user.uuid, text },
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to post comment");
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                comments: [...(p.comments || []), { userUuid: user.uuid, username: user.numeFullName, text }],
+              }
+            : p
+        )
+      );
+
+      setNewCommentText((prev) => ({ ...prev, [postId]: "" }));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // Fetch posts from API
+  /** Transform API post to display format */
+  const transformApiPost = (apiPost: ApiPost): Post => ({
+    id: apiPost.uuid,
+    title: apiPost.title,
+    body: apiPost.body,
+    img: apiPost.image || null,
+    code: apiPost.code || null,
+    createdAt: new Date(apiPost.timestamp).getTime(),
+    author: apiPost.authorUuid,
+    authorName: apiPost.author?.numeFullName || "Unknown User",
+    authorPhoto: apiPost.author?.poza,
+    likes: apiPost.likes?.map((l) => l.userUuid) || [],
+    comments: apiPost.comments?.map((c) => ({
+      userUuid: c.userUuid,
+      username: undefined, // will resolve when rendering
+      text: c.text,
+    })),
+  });
+
+  /** Fetch posts from API */
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
@@ -73,13 +115,10 @@ export default function FeedPage() {
       const response = await fetch("/api/posts?page=1&limit=50");
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to fetch posts");
-      }
+      if (!response.ok) throw new Error(data.message || "Failed to fetch posts");
 
       const apiPosts: ApiPost[] = data.data.posts || [];
-      const transformedPosts = apiPosts.map(transformApiPost);
-      setPosts(transformedPosts);
+      setPosts(apiPosts.map(transformApiPost));
     } catch (err) {
       console.error("Error fetching posts:", err);
       setError(err instanceof Error ? err.message : "Failed to load posts");
@@ -88,12 +127,11 @@ export default function FeedPage() {
     }
   }, []);
 
-  // Load posts from API on mount
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
-  // Like logic - call API
+  /** Handle likes/unlikes */
   const handleLike = async (postId: string) => {
     if (!user) {
       setError("You must be logged in to like posts");
@@ -107,30 +145,19 @@ export default function FeedPage() {
     const action = alreadyLiked ? "unlike" : "like";
 
     // Optimistic update
-    setPosts((prev) => {
-      return prev.map((p) => {
-        if (p.id === postId) {
-          const newLikes = alreadyLiked
-            ? p.likes?.filter((l) => l !== user.uuid)
-            : [...(p.likes || []), user.uuid];
-          return { ...p, likes: newLikes };
-        }
-        return p;
-      });
-    });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, likes: alreadyLiked ? p.likes?.filter((l) => l !== user.uuid) : [...(p.likes || []), user.uuid] }
+          : p
+      )
+    );
 
     try {
       const response = await fetch(`/api/posts/${postId}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action,
-          content: {
-            userUuid: user.uuid,
-          },
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, content: { userUuid: user.uuid } }),
       });
 
       if (!response.ok) {
@@ -138,41 +165,30 @@ export default function FeedPage() {
         throw new Error(data.message || "Failed to update like");
       }
 
-      // Refresh user data to update points
       await refreshUser();
-
     } catch (err) {
       console.error("Error updating like:", err);
-      // Revert optimistic update on error
-      setPosts((prev) => {
-        return prev.map((p) => {
-          if (p.id === postId) {
-            const revertedLikes = alreadyLiked
-              ? [...(p.likes || []), user.uuid]
-              : p.likes?.filter((l) => l !== user.uuid);
-            return { ...p, likes: revertedLikes };
-          }
-          return p;
-        });
-      });
+      // revert
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, likes: alreadyLiked ? [...(p.likes || []), user.uuid] : p.likes?.filter((l) => l !== user.uuid) }
+            : p
+        )
+      );
       setError("Failed to update like");
     }
   };
 
-  //Handle photo edit
-  // const handleFileChange = (file: File | null) => {
-  //   if (!file) return setImgPreview(null);
-  //   const reader = new FileReader();
-  //   reader.onload = () => {
-  //     setImgPreview(reader.result as string);
-  //     setEditingPost(
-  //       (prev) => prev && { ...prev, img: reader.result as string }
-  //     );
-  //   };
-  //   reader.readAsDataURL(file);
-  // };
+  /** Handle image file selection */
+  const handleFileChange = (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditingPost((prev) => prev && { ...prev, img: reader.result as string });
+    reader.readAsDataURL(file);
+  };
 
-  // Handle edit button click
+  /** Start editing a post */
   const startEdit = (post: Post) => {
     setEditingPost(post);
     setEditTitle(post.title);
@@ -180,7 +196,7 @@ export default function FeedPage() {
     setEditCode(post.code || "");
   };
 
-  // Save edited post
+  /** Save edited post */
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPost || !user) return;
@@ -191,13 +207,12 @@ export default function FeedPage() {
     try {
       const response = await fetch(`/api/posts/${editingPost.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: editTitle.trim(),
           body: editBody.trim(),
           code: editCode || null,
+          image: editingPost.img || null, // send image
         }),
       });
 
@@ -206,11 +221,10 @@ export default function FeedPage() {
         throw new Error(data.message || "Failed to update post");
       }
 
-      // Update local state
       setPosts((prev) =>
         prev.map((p) =>
           p.id === editingPost.id
-            ? { ...p, title: editTitle, body: editBody, code: editCode || null }
+            ? { ...p, title: editTitle, body: editBody, code: editCode || null, img: editingPost.img || null }
             : p
         )
       );
@@ -252,30 +266,21 @@ export default function FeedPage() {
         )}
 
         {!loading && posts.length === 0 && (
-          <p className="text-gray-500 text-center">
-            No posts yet. Be the first to post!
-          </p>
+          <p className="text-gray-500 text-center">No posts yet. Be the first to post!</p>
         )}
 
         {!loading &&
           posts.map((post) => {
             const isOwnPost = user && post.author === user.uuid;
-            const likesCount = post.likes?.length || 0;
             const liked = user && post.likes?.includes(user.uuid);
+            const likesCount = post.likes?.length || 0;
 
             return (
-              <div
-                key={post.id}
-                className="card bg-base-100 shadow-md border rounded-2xl p-5"
-              >
+              <div key={post.id} className="card bg-base-100 shadow-md border rounded-2xl p-5">
                 {/* Author and timestamp */}
                 <div className="flex justify-between items-center mb-3">
-                  <p className="font-semibold text-primary">
-                    {post.authorName || "Unknown User"}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {new Date(post.createdAt).toLocaleString()}
-                  </p>
+                  <p className="font-semibold text-primary">{post.authorName || "Unknown User"}</p>
+                  <p className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleString()}</p>
                 </div>
 
                 {/* Post content */}
@@ -284,11 +289,7 @@ export default function FeedPage() {
 
                 {post.img && (
                   <div className="overflow-hidden rounded-md border mb-3">
-                    <img
-                      src={post.img}
-                      alt="Post image"
-                      className="w-full object-cover max-h-72"
-                    />
+                    <img src={post.img} alt="Post image" className="w-full object-cover max-h-72" />
                   </div>
                 )}
 
@@ -302,28 +303,48 @@ export default function FeedPage() {
                   </div>
                 )}
 
-                {/* Likes and Edit */}
+                {/* Comments */}
+                <div className="mt-4">
+                  <h3 className="text-md font-semibold mb-2">Comments</h3>
+                  <div className="space-y-2">
+                    {post.comments?.map((comment, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="font-semibold">{comment.username || "Unknown User"}:</span>
+                        <span>{comment.text}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {user && (
+                    <div className="mt-2">
+                      <textarea
+                        className="input input-bordered w-full input-sm"
+                        placeholder="Add a comment..."
+                        value={newCommentText[post.id] || ""}
+                        onChange={(e) => setNewCommentText((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                      />
+                      <button className="btn btn-primary mt-2" onClick={() => handleAddComment(post.id)}>
+                        Comment
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Likes & Edit */}
                 <div className="flex justify-between items-center text-sm mt-3">
                   <button
                     onClick={() => handleLike(post.id)}
                     disabled={!user || !!isOwnPost}
                     className={`flex items-center gap-1 text-sm transition ${
-                      liked
-                        ? "text-red-500"
-                        : "text-gray-400 hover:text-red-500"
-                    } ${
-                      !user || isOwnPost ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                      liked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+                    } ${!user || isOwnPost ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <span className="text-lg">{liked ? "❤️" : "🤍"}</span>
                     <span>{likesCount}</span>
                   </button>
 
                   {isOwnPost && (
-                    <button
-                      className="btn btn-ghost btn-xs text-primary"
-                      onClick={() => startEdit(post)}
-                    >
+                    <button className="btn btn-ghost btn-xs text-primary" onClick={() => startEdit(post)}>
                       Edit Post
                     </button>
                   )}
@@ -337,10 +358,7 @@ export default function FeedPage() {
       {editingPost && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           {/* Overlay */}
-          <div
-            className="absolute inset-0 bg-black opacity-30"
-            onClick={cancelEdit}
-          />
+          <div className="absolute inset-0 bg-black opacity-30" onClick={cancelEdit} />
 
           {/* Modal content */}
           <div
@@ -375,7 +393,7 @@ export default function FeedPage() {
                 />
               </div>
 
-              {/* Code snippet */}
+              {/* Code */}
               <div>
                 <label className="label">
                   <span className="label-text">Code Snippet (optional)</span>
@@ -397,21 +415,39 @@ export default function FeedPage() {
                 )}
               </div>
 
-              {/* Save / Cancel buttons */}
+              {/* Image upload */}
+              <div>
+                <label className="label">
+                  <span className="label-text">Image (optional)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="file-input file-input-bordered w-full"
+                  onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              {/* Image preview */}
+              {editingPost?.img && (
+                <div className="mt-2 overflow-hidden rounded-md border max-h-48">
+                  <img src={editingPost.img} alt="Post image" className="w-full object-cover" />
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-error mt-1"
+                    onClick={() => setEditingPost({ ...editingPost, img: null })}
+                  >
+                    Remove Image
+                  </button>
+                </div>
+              )}
+
+              {/* Save / Cancel */}
               <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={cancelEdit}
-                  disabled={updating}
-                >
+                <button type="button" className="btn btn-ghost" onClick={cancelEdit} disabled={updating}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className={`btn btn-primary ${updating ? "loading" : ""}`}
-                  disabled={updating}
-                >
+                <button type="submit" className={`btn btn-primary ${updating ? "loading" : ""}`} disabled={updating}>
                   Save Changes
                 </button>
               </div>
