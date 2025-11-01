@@ -1,7 +1,9 @@
-export async function GET(_request: Request) {
-    return new Response('Hello, this is the posts API endpoint!');
+import { getAllPosts, handlePostAction } from '../../controllers/posts-controller';
+
+export async function GET(request: Request) {
+  return getAllPosts(request);
 }
 
-export async function POST(_request: Request) {
-    return new Response('Post created successfully!');
+export async function POST(request: Request) {
+  return handlePostAction(request);
 }

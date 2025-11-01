@@ -1,7 +1,13 @@
-export async function GET(_request: Request) {
-  return new Response("Hello, this is the posts API endpoint!");
+import { getUserById, updateUser, deleteUser } from '../../../controllers/users-controller';
+
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  return getUserById(request, params.id);
 }
 
-export async function POST(_request: Request) {
-  return new Response("Post created successfully!");
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  return updateUser(request, params.id);
+}
+
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  return deleteUser(request, params.id);
 }
