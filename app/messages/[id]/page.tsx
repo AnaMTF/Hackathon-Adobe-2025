@@ -86,7 +86,7 @@ export default function ConversationPage() {
 
   return (
     <main className="min-h-screen bg-base-200 flex flex-col">
-      <header className="w-full border-b border-base-300 bg-base-100">
+      <header className="fixed top-16 z-30 w-full border-b border-base-300 bg-base-100 shadow-sm backdrop-blur-sm">
         <div className="container mx-auto flex items-center gap-4 p-3">
           <button
             onClick={() => router.push("/messages")}
@@ -114,8 +114,8 @@ export default function ConversationPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-auto container mx-auto p-4">
-          <div className="max-w-3xl mx-auto flex flex-col gap-3">
+    <div className="flex-1 overflow-auto container mx-auto p-4">
+      <div className="max-w-3xl mx-auto flex flex-col gap-3 pb-24">
             {localMessages.map((m) => (
               <div key={m.id} className={m.from === "me" ? "chat chat-end" : "chat chat-start"}>
                 {/* avatar */}
@@ -156,7 +156,7 @@ export default function ConversationPage() {
           </div>
       </div>
 
-      <footer className="border-t border-base-300 bg-base-100 p-4">
+      <footer className="sticky bottom-0 z-40 border-t border-base-300 bg-base-100 shadow-sm backdrop-blur-sm p-4">
         <div className="container mx-auto max-w-3xl flex gap-2 items-end">
           <div className="relative">
             <button
