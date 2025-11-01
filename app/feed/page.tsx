@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type Post = {
   id: string;
@@ -9,63 +9,220 @@ type Post = {
   img?: string | null;
   code?: string | null;
   createdAt: number;
+  author?: string;
+  likes?: string[];
 };
 
 export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const loggedInUser = "you"; // simulate logged-in user
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [imgPreview, setImgPreview] = useState<string | null>(null);
 
-  // Load posts from localStorage when page mounts
+  // Load posts from localStorage
   useEffect(() => {
     const raw = localStorage.getItem("feed_posts");
     const arr: Post[] = raw ? JSON.parse(raw) : [];
     setPosts(arr);
   }, []);
 
-  // Listen for newly created posts in real-time
+  // Listen for new posts in real time
   useEffect(() => {
     const handleFeedUpdate = (e: CustomEvent) => {
-      setPosts(prev => [e.detail, ...prev]);
+      setPosts((prev) => [e.detail, ...prev]);
     };
     window.addEventListener("feed_updated", handleFeedUpdate as EventListener);
-    return () => window.removeEventListener("feed_updated", handleFeedUpdate as EventListener);
+    return () =>
+      window.removeEventListener("feed_updated", handleFeedUpdate as EventListener);
   }, []);
 
+  // Like logic
+  const handleLike = (id: string) => {
+    setPosts((prev) => {
+      const updated = prev.map((post) => {
+        if (post.id === id) {
+          const alreadyLiked = post.likes?.includes(loggedInUser);
+          const newLikes = alreadyLiked
+            ? post.likes?.filter((l) => l !== loggedInUser)
+            : [...(post.likes || []), loggedInUser];
+          return { ...post, likes: newLikes };
+        }
+        return post;
+      });
+      localStorage.setItem("feed_posts", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Handle edit button click
+  const startEdit = (post: Post) => {
+    setEditingPost(post);
+    setImgPreview(post.img || null);
+  };
+
+  // Handle file change in modal
+  const handleFileChange = (file?: File | null) => {
+    if (!file) return setImgPreview(null);
+    const reader = new FileReader();
+    reader.onload = () => setImgPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  // Save edited post
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPost) return;
+
+    const updatedPosts = posts.map((p) =>
+      p.id === editingPost.id ? { ...editingPost, img: imgPreview } : p
+    );
+    setPosts(updatedPosts);
+    localStorage.setItem("feed_posts", JSON.stringify(updatedPosts));
+    setEditingPost(null);
+    setImgPreview(null);
+  };
+
   return (
-    <main className="container mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold mb-6">Feed</h1>
+    <main className="container mx-auto px-4 py-6 flex justify-center">
+      <div className="w-full max-w-2xl space-y-6">
+        <h1 className="text-2xl font-bold mb-6 text-center">Feed</h1>
 
-      {posts.length === 0 && (
-        <p className="text-gray-500 text-center">No posts yet. Be the first to post!</p>
-      )}
+        {posts.length === 0 && (
+          <p className="text-gray-500 text-center">
+            No posts yet. Be the first to post!
+          </p>
+        )}
 
-      <div className="space-y-6">
-        {posts.map(post => (
-          <div key={post.id} className="card bg-base-100 shadow p-4">
-            <h2 className="text-lg font-semibold mb-2">{post.title}</h2>
-            <p className="mb-2">{post.body}</p>
+        {posts.map((post) => {
+          const isOwnPost = post.author === loggedInUser || !post.author;
+          const likesCount = post.likes?.length || 0;
+          const liked = post.likes?.includes(loggedInUser);
 
-            {post.img && (
-              <div className="overflow-hidden rounded-md border mb-2">
-                <img src={post.img} alt="Post image" className="w-full object-cover max-h-72" />
+          return (
+            <div
+              key={post.id}
+              className="card bg-base-100 shadow-md border rounded-2xl p-5"
+            >
+              {/* Author and timestamp */}
+              <div className="flex justify-between items-center mb-3">
+                <p className="font-semibold text-primary">
+                  {post.author ?? "You"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {new Date(post.createdAt).toLocaleString()}
+                </p>
               </div>
-            )}
 
-            {post.code && (
-              <div className="mockup-code mb-2 w-full">
-                {post.code.split("\n").map((line, i) => (
-                  <pre key={i} data-prefix="$">
-                    <code>{line || "\u00A0"}</code>
-                  </pre>
-                ))}
+              {/* Post content */}
+              <h2 className="text-lg font-semibold mb-2">{post.title}</h2>
+              <p className="mb-3">{post.body}</p>
+
+              {post.img && (
+                <div className="overflow-hidden rounded-md border mb-3">
+                  <img
+                    src={post.img}
+                    alt="Post image"
+                    className="w-full object-cover max-h-72"
+                  />
+                </div>
+              )}
+
+              {post.code && (
+                <div className="mockup-code mb-3 w-full">
+                  {post.code.split("\n").map((line, i) => (
+                    <pre key={i} data-prefix="$">
+                      <code>{line || "\u00A0"}</code>
+                    </pre>
+                  ))}
+                </div>
+              )}
+
+              {/* Likes or Edit */}
+              <div className="flex justify-between items-center text-sm mt-3">
+                <button
+                  onClick={() => handleLike(post.id)}
+                  disabled={isOwnPost}
+                  className={`flex items-center gap-1 text-sm transition ${
+                    liked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+                  } ${isOwnPost ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span className="text-lg">{liked ? "❤️" : "🤍"}</span>
+                  <span>{likesCount}</span>
+                </button>
+
+                {isOwnPost && (
+                  <button
+                    className="btn btn-ghost btn-xs text-primary"
+                    onClick={() => startEdit(post)}
+                  >
+                    Edit Post
+                  </button>
+                )}
               </div>
-            )}
-
-            <p className="text-xs text-gray-400">
-              {new Date(post.createdAt).toLocaleString()}
-            </p>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Edit Modal */}
+      {editingPost && (
+  <div className="fixed inset-0 flex items-center justify-center z-50">
+    {/* Overlay */}
+    <div
+      className="absolute inset-0 bg-black opacity-30"
+      onClick={() => setEditingPost(null)}
+    />
+
+    {/* Modal content */}
+    <div
+      className="bg-base-100 p-6 rounded-lg shadow-lg w-full max-w-lg relative z-10"
+      onClick={(e) => e.stopPropagation()} // <-- important!
+    >
+      <h2 className="text-xl font-semibold mb-4">Edit Post</h2>
+
+      <form onSubmit={handleSaveEdit} className="space-y-4">
+        {/* Title */}
+        <input
+          className="input input-bordered w-full"
+          value={editingPost.title}
+          onChange={(e) =>
+            setEditingPost({ ...editingPost, title: e.target.value })
+          }
+        />
+        {/* Body */}
+        <textarea
+          className="textarea textarea-bordered w-full h-24"
+          value={editingPost.body}
+          onChange={(e) =>
+            setEditingPost({ ...editingPost, body: e.target.value })
+          }
+        />
+        {/* Code snippet */}
+        <textarea
+          className="textarea textarea-bordered w-full h-24"
+          value={editingPost.code || ""}
+          onChange={(e) =>
+            setEditingPost({ ...editingPost, code: e.target.value || null })
+          }
+        />
+        {/* Save / Cancel buttons */}
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setEditingPost(null)}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
     </main>
   );
 }
