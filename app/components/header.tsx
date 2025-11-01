@@ -193,7 +193,7 @@ export default function Header() {
   // Don't render auth-dependent UI while loading
   if (loading) {
     return (
-      <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
+      <header className="fixed top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <button onClick={() => router.push('/feed')} className="btn btn-ghost btn-sm gap-2 items-center">
@@ -210,11 +210,20 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
+    <header className="fixed top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/feed')} className="btn btn-ghost btn-sm gap-2 items-center">
-            <Image src="/assets/logo.jpeg" alt="logo" width={36} height={36} className="rounded-full" />
+          <button
+            onClick={() => router.push("/feed")}
+            className="btn btn-ghost btn-sm gap-2 items-center"
+          >
+            <Image
+              src="/assets/logo.jpeg"
+              alt="logo"
+              width={36}
+              height={36}
+              className="rounded-full"
+            />
             <span className="font-semibold">XIAT</span>
           </button>
         </div>
@@ -222,17 +231,34 @@ export default function Header() {
         <nav className="flex items-center gap-3">
           {user ? (
             <>
-              <Link className="btn btn-ghost btn-sm" href="/make-post">Post Something</Link>
-              <Link className="btn btn-ghost btn-sm" href="/fun-activities">Fun Corner</Link>
-              <Link className="btn btn-ghost btn-sm" href="/rewards">Rewards</Link>
-              <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
-              
-              <Link className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">
+              <Link className="btn btn-ghost btn-sm" href="/make-post">
+                Post Something
+              </Link>
+              <Link className="btn btn-ghost btn-sm" href="/fun-activities">
+                Fun Corner
+              </Link>
+              <Link className="btn btn-ghost btn-sm" href="/rewards">
+                Rewards
+              </Link>
+              <Link className="btn btn-ghost btn-sm" href="/calendar">
+                Calendar
+              </Link>
+
+              <Link
+                className="btn btn-ghost btn-sm relative"
+                href="/messages"
+                aria-label="Messages"
+              >
                 Messages
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex items-center justify-center">
-                    <span className="inline-block h-2 w-2 rounded-full bg-error animate-bounce shadow-md" aria-hidden />
-                    <span className="sr-only">{unreadCount} unread messages</span>
+                    <span
+                      className="inline-block h-2 w-2 rounded-full bg-error animate-bounce shadow-md"
+                      aria-hidden
+                    />
+                    <span className="sr-only">
+                      {unreadCount} unread messages
+                    </span>
                   </span>
                 )}
               </Link>
@@ -246,9 +272,15 @@ export default function Header() {
 
                 <Link href="/checkout" className="btn btn-ghost btn-sm">
                   <div className="indicator">
-                    <span className="indicator-item badge badge-primary">{cartCount}</span>
-                    <span aria-hidden className="text-lg">🛒</span>
-                    <span className="sr-only">Shopping cart with {cartCount} items</span>
+                    <span className="indicator-item badge badge-primary">
+                      {cartCount}
+                    </span>
+                    <span aria-hidden className="text-lg">
+                      🛒
+                    </span>
+                    <span className="sr-only">
+                      Shopping cart with {cartCount} items
+                    </span>
                   </div>
                 </Link>
               </div>
@@ -258,32 +290,51 @@ export default function Header() {
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-sm gap-2">
                   {user.poza ? (
-                    <Image 
-                      src={user.poza} 
-                      alt={user.numeFullName} 
-                      width={24} 
-                      height={24} 
-                      className="rounded-full" 
+                    <Image
+                      src={user.poza}
+                      alt={user.numeFullName}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
                     />
                   ) : (
                     <div className="avatar placeholder">
                       <div className="bg-neutral text-neutral-content rounded-full w-6">
-                        <span className="text-xs">{user.numeFullName?.charAt(0) || user.email?.charAt(0) || '?'}</span>
+                        <span className="text-xs">
+                          {user.numeFullName?.charAt(0) ||
+                            user.email?.charAt(0) ||
+                            "?"}
+                        </span>
                       </div>
                     </div>
                   )}
-                  <span className="hidden md:inline">{user.numeFullName?.split(' ')[0] || user.email?.split('@')[0] || 'User'}</span>
+                  <span className="hidden md:inline">
+                    {user.numeFullName?.split(" ")[0] ||
+                      user.email?.split("@")[0] ||
+                      "User"}
+                  </span>
                 </label>
-                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2">
-                  <li><Link href="/user">Profile</Link></li>
-                  <li><button onClick={handleLogout}>Logout</button></li>
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2"
+                >
+                  <li>
+                    <Link href="/user">Profile</Link>
+                  </li>
+                  <li>
+                    <button onClick={handleLogout}>Logout</button>
+                  </li>
                 </ul>
               </div>
             </>
           ) : (
             <>
-              <Link className="btn btn-ghost btn-sm" href="/auth">Login</Link>
-              <Link className="btn btn-primary btn-sm" href="/register">Register</Link>
+              <Link className="btn btn-ghost btn-sm" href="/auth">
+                Login
+              </Link>
+              <Link className="btn btn-primary btn-sm" href="/register">
+                Register
+              </Link>
             </>
           )}
           <ThemeToggle />
