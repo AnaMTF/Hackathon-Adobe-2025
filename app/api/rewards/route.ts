@@ -77,14 +77,23 @@ export async function GET() {
       ];
 
       for (const item of seed) {
-        await Reward.create({
-          slug: item.slug,
-          title: item.title,
-          description: item.description,
-          price: item.price,
-          img: item.img,
-          stock: item.stock,
-        });
+        try {
+          // Check if reward with this slug already exists
+          const existing = await Reward.findOne({ where: { slug: item.slug } });
+          if (!existing) {
+            await Reward.create({
+              slug: item.slug,
+              title: item.title,
+              description: item.description,
+              price: item.price,
+              img: item.img,
+              stock: item.stock,
+            });
+          }
+        } catch (error) {
+          // If it fails due to unique constraint, just continue
+          console.log(`Reward ${item.slug} already exists, skipping...`, error instanceof Error ? error.message : error);
+        }
       }
     }
 

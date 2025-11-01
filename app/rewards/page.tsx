@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 type CartItem = { id: string; qty: number };
 
@@ -15,6 +16,8 @@ type RewardItem = {
 };
 
 export default function RewardsPage() {
+  const { user, refreshUser } = useAuth();
+  
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       if (typeof window !== "undefined") {
@@ -25,20 +28,6 @@ export default function RewardsPage() {
       return [];
     }
     return [];
-  });
-
-  const [points, setPoints] = useState<number>(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const p = localStorage.getItem("user_points");
-        if (p) return Number(p);
-        localStorage.setItem("user_points", String(5000));
-        return 5000;
-      }
-    } catch {
-      return 0;
-    }
-    return 0;
   });
 
   useEffect(() => {
@@ -80,7 +69,12 @@ export default function RewardsPage() {
     return () => { mounted = false; };
   }, []);
 
-  const addToCart = (item: RewardItem) => {
+  const addToCart = async (item: RewardItem) => {
+    if (!user) {
+      window.alert("You must be logged in to redeem items.");
+      return;
+    }
+
     const key = item.slug ?? item.id;
     // guard against double clicks / race: if already processing this id, ignore
     if (processingIds.includes(key)) return;
@@ -95,36 +89,52 @@ export default function RewardsPage() {
       return;
     }
 
-    if (points < item.price) {
+    if (user.points < item.price) {
       window.alert("Not enough points to redeem this item.");
       // release processing lock
       setProcessingIds((s) => s.filter((x) => x !== key));
       return;
     }
 
-    // prevent accidental double clicks by ensuring we update state only once per invocation
-    setCart((prev) => {
-      const copy = [...prev];
-      // prefer slug for stable string id, otherwise use UUID
-      const idx = copy.findIndex((c) => c.id === key);
-      if (idx >= 0) {
-        copy[idx].qty = (copy[idx].qty || 0) + 1;
-      } else {
-        copy.push({ id: key, qty: 1 });
-      }
-      return copy;
-    });
-
-    // deduct points immediately
-    const newPoints = points - item.price;
-    setPoints(newPoints);
     try {
-      localStorage.setItem("user_points", String(newPoints));
-      window.dispatchEvent(new CustomEvent("points_updated"));
-    } catch {}
-    // release processing lock after short delay to avoid accidental duplicates
-    setTimeout(() => setProcessingIds((s) => s.filter((x) => x !== key)), 300);
+      // Deduct points from the database
+      const response = await fetch('/api/auth/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important: include cookies for authentication
+        body: JSON.stringify({
+          points: user.points - item.price
+        }),
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to update points:', errorData);
+        throw new Error(errorData.message || 'Failed to update points');
+      }
+
+      // Add to cart
+      setCart((prev) => {
+        const copy = [...prev];
+        const idx = copy.findIndex((c) => c.id === key);
+        if (idx >= 0) {
+          copy[idx].qty = (copy[idx].qty || 0) + 1;
+        } else {
+          copy.push({ id: key, qty: 1 });
+        }
+        return copy;
+      });
+
+      // Refresh user data to update points in UI
+      await refreshUser();
+
+    } catch (error) {
+      console.error('Error redeeming item:', error);
+      window.alert('Failed to redeem item. Please try again.');
+    } finally {
+      // release processing lock
+      setTimeout(() => setProcessingIds((s) => s.filter((x) => x !== key)), 300);
+    }
   };
 
   const totalCartItems = cart.reduce((s, i) => s + (i.qty || 0), 0);
@@ -136,7 +146,7 @@ export default function RewardsPage() {
         <div className="flex items-center gap-3">
           <div className="px-3 py-1 rounded-full border border-base-300 bg-base-100 text-sm flex items-center gap-2">
             <span className="text-xs opacity-70">Your points</span>
-            <span className="font-semibold">{points}</span>
+            <span className="font-semibold">{user?.points ?? 0}</span>
           </div>
           <div className="badge badge-outline">{totalCartItems} items</div>
         </div>
