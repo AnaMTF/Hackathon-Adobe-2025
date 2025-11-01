@@ -47,7 +47,7 @@ export default function Header() {
   // Don't render auth-dependent UI while loading
   if (loading) {
     return (
-      <header className="w-full border-b border-base-300 bg-base-200">
+      <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <button onClick={() => router.push('/')} className="btn btn-ghost btn-sm gap-2 items-center">
@@ -64,7 +64,7 @@ export default function Header() {
   }
 
   return (
-    <header className="w-full border-b border-base-300 bg-base-200">
+    <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
           <button onClick={() => router.push('/')} className="btn btn-ghost btn-sm gap-2 items-center">
@@ -77,6 +77,7 @@ export default function Header() {
           {user ? (
             <>
               <Link className="btn btn-ghost btn-sm" href="/feed">Feed</Link>
+              <Link className="btn btn-ghost btn-sm" href="/fun-activities">Fun Corner</Link>
               <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
               
               <Link className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">

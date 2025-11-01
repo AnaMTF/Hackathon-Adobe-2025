@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "daisyui";
+@source "../node_modules/@ferrucc-io/emoji-picker";
 
 /* Custom DaisyUI themes (added via request) */
 @plugin "daisyui/theme" {
