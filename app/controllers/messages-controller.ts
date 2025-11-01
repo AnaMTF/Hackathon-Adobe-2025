@@ -370,7 +370,7 @@ export async function getConversations(request: Request) {
       where: {
         uuid: Array.from(partnerUuids),
       },
-      attributes: ['uuid', 'numeFullName', 'poza', 'departament', 'jobTitle'],
+      attributes: ['uuid', 'numeFullName', 'poza', 'departament', 'jobTitle', 'status', 'lastSeen'],
     });
 
     // Get last message and unread count for each conversation

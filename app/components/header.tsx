@@ -260,9 +260,9 @@ export default function Header() {
               <Link className="btn btn-ghost btn-sm" href="/make-post">
                 Post Something
               </Link>
-              <Link className="btn btn-ghost btn-sm" href="/fun-activities">
+              {/* <Link className="btn btn-ghost btn-sm" href="/fun-activities">
                 Fun Corner
-              </Link>
+              </Link> */}
               <Link className="btn btn-ghost btn-sm" href="/rewards">
                 Rewards
               </Link>
