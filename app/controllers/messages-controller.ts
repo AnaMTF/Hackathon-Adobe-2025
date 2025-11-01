@@ -3,6 +3,7 @@ import { User } from '../models/user-model';
 import { ensureDbReady } from '../../lib/database';
 import { Op } from 'sequelize';
 import { MessageActionSchema } from '../schemas/message-schemas';
+import { messageSSEManager } from '../../lib/message-sse';
 
 // Do not auto-initialize at module load to avoid races; await ensureDbReady() inside handlers
 
@@ -154,7 +155,7 @@ export async function handleMessageAction(request: Request) {
 
     switch (action) {
       case 'create':
-        return await createMessage(validation.data.fields, request);
+        return await createMessage(validation.data.fields);
       case 'markRead':
         return createErrorResponse(
           new Error('Use PUT /api/messages/[id] to mark as read'),
@@ -175,40 +176,34 @@ export async function handleMessageAction(request: Request) {
 
 // Helper: Create a new message
 async function createMessage(
-  fields: { recipientUuid: string; text: string },
-  request: Request
+  fields: { recipientUuid: string; text: string; senderUuid: string }
 ) {
   try {
-    // Get sender UUID from request (assuming auth context provides it)
-    const url = new URL(request.url);
-    const senderUuid = url.searchParams.get('sender');
-
-    if (!senderUuid) {
-      return createErrorResponse(
-        new Error('Sender UUID is required'),
-        400
-      );
-    }
+    console.log('[createMessage] Starting message creation with data:', fields);
 
     // Verify sender exists
-    const sender = await User.findByPk(senderUuid);
+    const sender = await User.findByPk(fields.senderUuid);
     if (!sender) {
+      console.error('[createMessage] Sender user not found:', fields.senderUuid);
       return createErrorResponse(new Error('Sender not found'), 404);
     }
 
     // Verify recipient exists
     const recipient = await User.findByPk(fields.recipientUuid);
     if (!recipient) {
+      console.error('[createMessage] Recipient not found:', fields.recipientUuid);
       return createErrorResponse(new Error('Recipient not found'), 404);
     }
 
     // Create the message
+    console.log('[createMessage] Creating message in database...');
     const message = await Message.create({
-      senderUuid,
+      senderUuid: fields.senderUuid,
       recipientUuid: fields.recipientUuid,
       text: fields.text,
       read: null,
     });
+    console.log('[createMessage] Message created with UUID:', message.uuid);
 
     // Fetch the created message with associations
     const createdMessage = await Message.findByPk(message.uuid, {
@@ -224,6 +219,33 @@ async function createMessage(
           attributes: ['uuid', 'numeFullName', 'poza', 'departament', 'jobTitle'],
         },
       ],
+    });
+
+    // Broadcast SSE notification to ALL connected clients (simpler and more reliable)
+    console.log('[createMessage] Broadcasting new message via SSE to all clients');
+    messageSSEManager.broadcast({
+      type: 'messageCreated',
+      data: {
+        ...createdMessage?.toJSON(),
+        senderUuid: fields.senderUuid,
+        recipientUuid: fields.recipientUuid,
+      }
+    });
+
+    // Get and send updated unread count to recipient
+    const unreadCount = await Message.count({
+      where: {
+        recipientUuid: fields.recipientUuid,
+        read: null,
+      },
+    });
+    console.log('[createMessage] Sending unread count update to recipient:', unreadCount);
+    messageSSEManager.broadcast({
+      type: 'unreadCountUpdate',
+      data: {
+        userId: fields.recipientUuid,
+        unreadCount
+      }
     });
 
     return createResponse(createdMessage, 201, 'Message sent successfully');
@@ -264,6 +286,24 @@ export async function markMessageAsRead(messageUuid: string) {
         },
       ],
     });
+
+    // Broadcast SSE notification to sender (message has been read)
+    console.log('[markMessageAsRead] Broadcasting read notification via SSE to sender:', message.senderUuid);
+    messageSSEManager.notifyMessageRead({
+      ...updatedMessage?.toJSON(),
+      senderUuid: message.senderUuid,
+      uuid: messageUuid,
+    });
+
+    // Get and send updated unread count to recipient
+    const recipientUnreadCount = await Message.count({
+      where: {
+        recipientUuid: message.recipientUuid,
+        read: null,
+      },
+    });
+    console.log('[markMessageAsRead] Sending updated unread count to recipient:', recipientUnreadCount);
+    messageSSEManager.notifyUnreadCountUpdate(message.recipientUuid, recipientUnreadCount);
 
     return createResponse(updatedMessage, 200, 'Message marked as read');
   } catch (error) {
