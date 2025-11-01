@@ -28,7 +28,7 @@ export default function Auth() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-base-200">
-      <div className="absolute top-8 flex flex-col items-center">
+  <div className="absolute top-24 left-1/2 -translate-x-1/2 flex flex-col items-center">
         <Image
           src="/assets/logo.jpeg"
           alt="App Logo"
