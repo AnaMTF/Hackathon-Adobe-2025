@@ -1,9 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { MERCH, type Merch } from "../shop/data";
 
 type CartItem = { id: string; qty: number };
+
+type RewardItem = {
+  id: string;
+  slug?: string | null;
+  title: string;
+  description?: string | null;
+  price: number;
+  img?: string | null;
+};
 
 export default function RewardsPage() {
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -41,7 +49,35 @@ export default function RewardsPage() {
     }
   }, [cart]);
 
-  const addToCart = (item: Merch) => {
+  const [items, setItems] = useState<RewardItem[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchRewards = async () => {
+      try {
+        const res = await fetch('/api/rewards');
+        if (!res.ok) throw new Error('Failed to fetch rewards');
+        const data = await res.json();
+        if (data.success && data.data && data.data.rewards) {
+          if (mounted) setItems(data.data.rewards.map((r: any) => ({
+            id: r.id,
+            slug: r.slug ?? null,
+            title: r.title,
+            description: r.description,
+            price: r.price,
+            img: r.img,
+          })));
+        }
+      } catch (err) {
+        console.error('Error loading rewards', err);
+      }
+    };
+
+    fetchRewards();
+    return () => { mounted = false; };
+  }, []);
+
+  const addToCart = (item: RewardItem) => {
     // if user doesn't have enough points, show an alert
     if (points < item.price) {
       window.alert("Not enough points to redeem this item.");
@@ -50,11 +86,13 @@ export default function RewardsPage() {
 
     setCart((prev) => {
       const copy = [...prev];
-      const idx = copy.findIndex((c) => c.id === item.id);
+      // prefer slug for stable string id, otherwise use UUID
+      const key = item.slug ?? item.id;
+      const idx = copy.findIndex((c) => c.id === key);
       if (idx >= 0) {
         copy[idx].qty += 1;
       } else {
-        copy.push({ id: item.id, qty: 1 });
+        copy.push({ id: key, qty: 1 });
       }
       return copy;
     });
@@ -84,17 +122,17 @@ export default function RewardsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {MERCH.map((m) => (
+        {items.map((m) => (
           <article key={m.id} className="card card-compact bg-base-100 shadow">
             <figure className="h-44 w-full overflow-hidden">
-              <img src={m.img} alt={m.title} className="object-cover w-full h-full" />
+              <img src={m.img ?? '/assets/placeholder.png'} alt={m.title} className="object-cover w-full h-full" />
             </figure>
             <div className="card-body">
               <div className="flex items-start justify-between">
                 <h2 className="card-title">{m.title}</h2>
                 <span className="badge badge-primary">{m.price} pts</span>
               </div>
-              <p className="text-sm opacity-80">{m.desc}</p>
+              <p className="text-sm opacity-80">{m.description}</p>
               <div className="card-actions justify-end">
                 <button
                   className="btn btn-primary btn-sm"
