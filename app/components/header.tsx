@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 
 export default function Header() {
   const router = useRouter();
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, refreshUser } = useAuth();
   
   // Initialize state with localStorage value
   const [unreadCount, setUnreadCount] = useState<number>(() => {
@@ -190,6 +190,34 @@ export default function Header() {
     }
   };
 
+  const handleSetStatus = async (status: 'online' | 'away' | 'busy' | 'offline') => {
+    try {
+      const res = await fetch('/api/users/status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        window.alert('Failed to update status: ' + (data?.message || 'Unknown error'));
+        return;
+      }
+
+      // Refresh local user state and notify other components
+      try {
+        await refreshUser();
+      } catch (e) {
+        // still proceed
+      }
+
+      window.dispatchEvent(new CustomEvent('user_status_updated', { detail: { status } }));
+    } catch (err) {
+      console.error('Failed to set status', err);
+      window.alert('Failed to update status. See console for details.');
+    }
+  };
+
   // Don't render auth-dependent UI while loading
   if (loading) {
     return (
@@ -318,12 +346,28 @@ export default function Header() {
                   tabIndex={0}
                   className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2"
                 >
-                  <li>
-                    <Link href="/user">Profile</Link>
-                  </li>
-                  <li>
-                    <button onClick={handleLogout}>Logout</button>
-                  </li>
+                    <li className="menu-title">
+                      <span>Set status</span>
+                    </li>
+                    <li>
+                      <button onClick={() => handleSetStatus('online')}>Online</button>
+                    </li>
+                    <li>
+                      <button onClick={() => handleSetStatus('away')}>Away</button>
+                    </li>
+                    <li>
+                      <button onClick={() => handleSetStatus('busy')}>Busy</button>
+                    </li>
+                    <li>
+                      <button onClick={() => handleSetStatus('offline')}>Offline</button>
+                    </li>
+                    <li className="divider" />
+                    <li>
+                      <Link href="/user">Profile</Link>
+                    </li>
+                    <li>
+                      <button onClick={handleLogout}>Logout</button>
+                    </li>
                 </ul>
               </div>
             </>
