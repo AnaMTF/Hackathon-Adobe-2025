@@ -14,15 +14,14 @@ export interface PostAttributes {
   authorUuid: string;
   poze: string[]; // Array of base64 image data (max 3)
   text: string; // Max 256 characters
-  tags: string[]; // Array of user UUIDs (max 10)
-  event?: EventInfo; // Optional event information
+  codeSnippet?: string | null; // Optional code snippet text
   timestamp: Date; // When the post was created
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 // Optional attributes for creation
-type PostCreationAttributes = Optional<PostAttributes, 'uuid' | 'event' | 'timestamp' | 'createdAt' | 'updatedAt'>;
+type PostCreationAttributes = Optional<PostAttributes, 'uuid' | 'timestamp' | 'createdAt' | 'updatedAt'>;
 
 // Post model class - DO NOT declare public fields, they shadow Sequelize getters/setters
 export class Post extends Model<PostAttributes, PostCreationAttributes> implements PostAttributes {
@@ -30,8 +29,7 @@ export class Post extends Model<PostAttributes, PostCreationAttributes> implemen
   declare authorUuid: string;
   declare poze: string[];
   declare text: string;
-  declare tags: string[];
-  declare event?: EventInfo;
+  declare codeSnippet?: string | null;
   declare timestamp: Date;
 
   // Timestamps
@@ -92,47 +90,13 @@ Post.init(
         len: [1, 256],
       },
     },
-    tags: {
-      type: DataTypes.JSON,
-      allowNull: false,
-      defaultValue: [],
-      validate: {
-        isValidTags(value: string[]) {
-          if (!Array.isArray(value)) {
-            throw new Error('Tags must be an array');
-          }
-          if (value.length > 10) {
-            throw new Error('Maximum 10 users can be tagged');
-          }
-          // Validate each UUID
-          value.forEach(uuid => {
-            if (typeof uuid !== 'string' || !uuid.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-              throw new Error('Each tag must be a valid UUID');
-            }
-          });
-        },
-      },
-    },
-    event: {
-      type: DataTypes.JSON,
+    codeSnippet: {
+      type: DataTypes.TEXT,
       allowNull: true,
       validate: {
-        isValidEvent(value: EventInfo | null) {
-          if (value !== null && value !== undefined) {
-            if (typeof value !== 'object' || !value.location || !value.time) {
-              throw new Error('Event must have location and time properties');
-            }
-            if (typeof value.location !== 'string' || value.location.trim() === '') {
-              throw new Error('Event location must be a non-empty string');
-            }
-            // Check if time is a valid date
-            const timeValue = value.time;
-            if (!(timeValue instanceof Date)) {
-              const parsedDate = new Date(timeValue);
-              if (isNaN(parsedDate.getTime())) {
-                throw new Error('Event time must be a valid date');
-              }
-            }
+        isStringOrNull(value: string | null) {
+          if (value !== null && typeof value !== 'string') {
+            throw new Error('codeSnippet must be a string or null');
           }
         },
       },

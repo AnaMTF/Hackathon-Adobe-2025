@@ -219,16 +219,22 @@ export default function Messages() {
                 >
                   <div className="relative">
                     <div className="avatar">
-                      <div className="w-12 h-12 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-semibold">
-                        {c.partner.numeFullName
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .slice(0, 2)
-                          .join("")}
+                      <div className="w-12 h-12 rounded-full overflow-hidden">
+                        {c.partner.poza ? (
+                          <img src={c.partner.poza} alt={c.partner.numeFullName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-semibold">
+                            {c.partner.numeFullName
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .slice(0, 2)
+                              .join("")}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* status ping (animated) */}
+                    {/* status ping (animated) - use partner.status from DB */}
                     <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(c.partner.status || 'offline')}`} style={{ opacity: 0.9 }} />
                     <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(c.partner.status || 'offline')} animate-ping`} style={{ opacity: 0.9 }} />
                   </div>
