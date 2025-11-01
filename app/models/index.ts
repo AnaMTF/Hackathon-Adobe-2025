@@ -3,9 +3,10 @@ import User from './user-model';
 import Post from './post-model';
 import { PostLike, PostComment, PostFavorite } from './post-interactions';
 import Event from './event-model';
+import Message from './message-model';
 
 // Export models
-export { User, Post, PostLike, PostComment, PostFavorite, Event };
+export { User, Post, PostLike, PostComment, PostFavorite, Event, Message };
 
 // Export database utilities
 export { sequelize, connectDB, syncDB };
@@ -25,6 +26,7 @@ const models = {
   PostComment,
   PostFavorite,
   Event,
+  Message,
   sequelize,
   connectDB,
   syncDB,

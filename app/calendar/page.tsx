@@ -1,12 +1,23 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Pikaday from "pikaday";
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
+
+type Event = {
+  uuid: string;
+  name: string;
+  details: string;
+  date: string;
+  creatorUuid: string;
+  creator?: {
+    uuid: string;
+    numeFullName: string;
+  };
+};
 
 export default function Calendar() {
   const myDatepicker = useRef(null);
@@ -15,16 +26,127 @@ export default function Calendar() {
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  type Event = { name: string; details: string; date: string };
   const [events, setEvents] = useState<Event[]>([]);
   const [eventName, setEventName] = useState("");
   const [eventDetails, setEventDetails] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ userId: string } | null>(null);
+
+  // Fetch current user
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          // API returns { success, data: { user: { uuid, ... } } }
+          if (data.success && data.data?.user?.uuid) {
+            console.log('[Calendar] Current user UUID from /api/auth/me:', data.data.user.uuid);
+            setCurrentUser({ userId: data.data.user.uuid });
+          } else {
+            console.warn('[Calendar] Could not resolve current user UUID from /api/auth/me payload:', data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    }
+    fetchUser();
+  }, []);
+
+  // Fetch events from API (next 7 days and today)
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        const startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 7);
+        endDate.setHours(23, 59, 59, 999);
+
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+
+        const response = await fetch(
+          `/api/events?startDate=${startDateStr}&endDate=${endDateStr}&limit=100`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.events) {
+            setEvents(data.data.events);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      }
+    }
+    fetchEvents();
+  }, []);
+
+  // Setup SSE connection for real-time updates
+  useEffect(() => {
+    const eventSource = new EventSource('/api/events/sse');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        switch (message.type) {
+          case 'connected':
+            console.log('SSE connected:', message.timestamp);
+            break;
+            
+          case 'eventCreated':
+            console.log('New event created:', message.data);
+            setEvents((prev) => {
+              // Check if event already exists
+              const exists = prev.some(e => e.uuid === message.data.uuid);
+              if (!exists) {
+                return [...prev, message.data];
+              }
+              return prev;
+            });
+            break;
+            
+          case 'eventUpdated':
+            console.log('Event updated:', message.data);
+            setEvents((prev) =>
+              prev.map((e) => (e.uuid === message.data.uuid ? message.data : e))
+            );
+            break;
+            
+          case 'eventDeleted':
+            console.log('Event deleted:', message.data.uuid);
+            setEvents((prev) => prev.filter((e) => e.uuid !== message.data.uuid));
+            break;
+        }
+      } catch (error) {
+        console.error('Error parsing SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
 
   useEffect(() => {
-    const picker = new Pikaday({
-      field: myDatepicker.current,
-    });
-    return () => picker.destroy();
+    // Dynamically import Pikaday only on client side
+    if (typeof window !== 'undefined') {
+      import('pikaday').then((Pikaday) => {
+        const picker = new Pikaday.default({
+          field: myDatepicker.current as unknown as HTMLElement,
+        });
+        return () => picker.destroy();
+      });
+    }
   }, []);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -78,7 +200,7 @@ export default function Calendar() {
     <div className="relative min-h-screen w-full px-8">
       <div className={`flex flex-row items-start justify-center gap-8 w-full ${showModal ? "blur-sm" : ""}`}>
         {/* Calendar */}
-        <div className="flex flex-col items-center flex-[2] bg-base-100 rounded-lg shadow p-4">
+        <div className="flex flex-col items-center flex-2 bg-base-100 rounded-lg shadow p-4">
           <div className="flex items-center mb-4 gap-4">
             <button className="btn btn-outline" onClick={prevMonth}>
               Prev
@@ -100,10 +222,10 @@ export default function Calendar() {
           </div>
         </div>
 
-        <div className="flex-[1] w-full max-w-xs bg-base-200 rounded-lg shadow-lg p-6 text-base-content">
+        <div className="flex-1 w-full max-w-xs bg-base-200 rounded-lg shadow-lg p-6 text-base-content">
           {/* Today's Events*/}
           <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4">Today's Events</h2>
+            <h2 className="text-xl font-bold mb-4">Today&apos;s Events</h2>
             <ul>
               {events
                 .filter(e => e.date === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`)
@@ -145,20 +267,57 @@ export default function Calendar() {
           <div className="bg-base-100 p-6 rounded shadow-lg w-80 text-base-content">
             <h2 className="text-lg font-bold mb-2">Add Event</h2>
             <form
-              onSubmit={e => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                if (eventName && selectedDate) {
-                  setEvents([
-                    ...events,
-                    {
-                      name: eventName,
-                      details: eventDetails,
-                      date: selectedDate,
-                    },
-                  ]);
-                  setShowModal(false);
-                  setEventName("");
-                  setEventDetails("");
+                if (!currentUser?.userId) {
+                  alert('You must be logged in to create events.');
+                  return;
+                }
+                
+                console.log('Current user:', currentUser);
+                console.log('Event details:', { eventName, selectedDate, eventDetails });
+                
+                if (eventName && selectedDate && currentUser?.userId) {
+                  setIsLoading(true);
+                  try {
+                    const requestBody = {
+                      action: 'create' as const,
+                      fields: {
+                        name: eventName,
+                        date: selectedDate,
+                        details: eventDetails || '',
+                        creatorUuid: currentUser.userId,
+                      },
+                    };
+                    
+                    console.log('🚀 CREATING EVENT - Request Body:', JSON.stringify(requestBody, null, 2));
+                    console.log('🚀 Current User ID:', currentUser.userId);
+                    
+                    const response = await fetch('/api/events', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(requestBody),
+                    });
+
+                    if (response.ok) {
+                      const data = await response.json();
+                      console.log('Event created:', data);
+                      // Event will be added via SSE, so we don't need to manually add it
+                      setShowModal(false);
+                      setEventName("");
+                      setEventDetails("");
+                    } else {
+                      const errorData = await response.json();
+                      alert(`Error: ${errorData.message || 'Failed to create event'}`);
+                    }
+                  } catch (error) {
+                    console.error('Error creating event:', error);
+                    alert('Failed to create event. Please try again.');
+                  } finally {
+                    setIsLoading(false);
+                  }
                 }
               }}
             >
@@ -190,12 +349,13 @@ export default function Calendar() {
                 />
               </div>
               <div className="flex gap-2 mt-4">
-                <button type="submit" className="btn btn-primary">
-                  Save
+                <button type="submit" className="btn btn-primary" disabled={isLoading}>
+                  {isLoading ? 'Saving...' : 'Save'}
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline"
+                  disabled={isLoading}
                   onClick={() => {
                     setShowModal(false);
                     setEventName("");
