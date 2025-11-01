@@ -24,16 +24,78 @@ export default function Header() {
     return 0;
   });
 
+  // Points balance (stored in localStorage as 'user_points')
+  const [userPoints, setUserPoints] = useState<number>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const v = localStorage.getItem('user_points');
+        if (v) return Number(v);
+        // default initial points
+        localStorage.setItem('user_points', String(5000));
+        return 5000;
+      }
+    } catch {
+      return 5000;
+    }
+    return 5000;
+  });
+
+  // Cart item count (stored in localStorage as 'cart_items')
+  const [cartCount, setCartCount] = useState<number>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem('cart_items');
+        if (!raw) return 0;
+        const arr = JSON.parse(raw) as Array<{ id: string; qty: number }>;
+        return arr.reduce((s, it) => s + (it.qty || 0), 0);
+      }
+    } catch {
+      return 0;
+    }
+    return 0;
+  });
+
   // Listen for storage changes from other tabs/windows
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'unread_messages' && e.newValue) {
         setUnreadCount(Number(e.newValue));
       }
+      if (e.key === 'user_points' && e.newValue) {
+        setUserPoints(Number(e.newValue));
+      }
+      if (e.key === 'cart_items') {
+        try {
+          const raw = e.newValue;
+          if (!raw) return setCartCount(0);
+          const arr = JSON.parse(raw as string) as Array<{ id: string; qty: number }>;
+          setCartCount(arr.reduce((s, it) => s + (it.qty || 0), 0));
+        } catch {
+          setCartCount(0);
+        }
+      }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Also listen for internal cart updates dispatched as a CustomEvent so
+  // changes in the same tab update the header immediately.
+  useEffect(() => {
+    const onCartUpdated = () => {
+      try {
+        const raw = localStorage.getItem('cart_items');
+        if (!raw) return setCartCount(0);
+        const arr = JSON.parse(raw) as Array<{ id: string; qty: number }>;
+        setCartCount(arr.reduce((s, it) => s + (it.qty || 0), 0));
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    window.addEventListener('cart_updated', onCartUpdated as EventListener);
+    return () => window.removeEventListener('cart_updated', onCartUpdated as EventListener);
   }, []);
 
   const handleLogout = async () => {
@@ -90,6 +152,22 @@ export default function Header() {
                   </span>
                 )}
               </Link>
+
+              {/* Points summary and cart */}
+              <div className="hidden sm:flex items-center gap-3">
+                <div className="px-3 py-1 rounded-full border border-base-300 bg-base-100 text-sm flex items-center gap-2">
+                  <span className="text-xs opacity-70">Points</span>
+                  <span className="font-semibold">{userPoints}</span>
+                </div>
+
+                <Link href="/shop" className="btn btn-ghost btn-sm">
+                  <div className="indicator">
+                    <span className="indicator-item badge badge-primary">{cartCount}</span>
+                    <span aria-hidden className="text-lg">🛒</span>
+                    <span className="sr-only">Shopping cart with {cartCount} items</span>
+                  </div>
+                </Link>
+              </div>
 
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-sm gap-2">
