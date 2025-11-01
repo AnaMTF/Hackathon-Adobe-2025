@@ -362,6 +362,20 @@ export default function ConversationPage() {
     );
   }
 
+  // status color helper (same mapping as messages list)
+  function statusColor(s: UserStatus) {
+    switch (s) {
+      case "online":
+        return "bg-success";
+      case "away":
+        return "bg-warning";
+      case "busy":
+        return "bg-error";
+      default:
+        return "bg-neutral";
+    }
+  }
+
   // Use partner data if available, otherwise use partnerId as fallback
   const displayName = partner?.numeFullName || "User";
   const displayEmail = partner?.email || "";
@@ -378,14 +392,22 @@ export default function ConversationPage() {
             Back
           </button>
           <div className="flex items-center gap-3">
-            <div className="avatar">
-              <div className="w-10 h-10 rounded-full bg-primary text-primary-content flex items-center justify-center">
-                {displayName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")}
+            <div className="avatar relative">
+              <div className="w-10 h-10 rounded-full overflow-hidden">
+                {partner?.poza ? (
+                  <img src={partner.poza} alt={displayName} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-primary text-primary-content flex items-center justify-center">
+                    {displayName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join("")}
+                  </div>
+                )}
               </div>
+              <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(displayStatus as UserStatus)}`} style={{ opacity: 0.9 }} />
+              <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(displayStatus as UserStatus)} animate-ping`} style={{ opacity: 0.9 }} />
             </div>
             <div>
               <div className="font-bold">{displayName}</div>
@@ -411,13 +433,16 @@ export default function ConversationPage() {
               <div key={m.uuid} className={isMe ? "chat chat-end" : "chat chat-start"}>
                 {/* avatar */}
                 <div className="chat-image avatar">
-                  <div className="w-10 rounded-full">
-                    {/* use a simple initials avatar fallback */}
+                  <div className="w-10 h-10 rounded-full overflow-hidden">
+                    {/* prefer real avatar from DB, fallback to ui-avatars */}
                     <img
                       alt={isMe ? "You" : partnerName}
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        isMe ? "You" : partnerName
-                      )}&background=fff&color=000&size=128`}
+                      src={
+                        isMe
+                          ? (user?.poza ?? `https://ui-avatars.com/api/?name=${encodeURIComponent("You")}&background=fff&color=000&size=128`)
+                          : (partner?.poza ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(partnerName)}&background=fff&color=000&size=128`)
+                      }
+                      className="w-full h-full object-cover"
                     />
                   </div>
                 </div>
