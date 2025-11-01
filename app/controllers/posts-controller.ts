@@ -1,12 +1,11 @@
 import { Post } from '../models/post-model';
 import { User } from '../models/user-model';
 import { PostLike, PostComment, PostFavorite } from '../models/post-interactions';
-import { initializeDatabase } from '../models';
+import { ensureDbReady } from '../../lib/database';
 import { Op } from 'sequelize';
-import { PostActionSchema, PostAction } from '../schemas/post-schemas';
+import { PostActionSchema } from '../schemas/post-schemas';
 
-// Initialize database connection
-initializeDatabase().catch(console.error);
+// Do not auto-initialize at module load to avoid races; await ensureDbReady() inside handlers
 
 // Helper function to create standardized API responses
 function createResponse(data: unknown, status: number = 200, message?: string) {
@@ -33,6 +32,7 @@ function createErrorResponse(error: unknown, status: number = 500) {
 // GET /api/posts - Get all posts
 export async function getAllPosts(request: Request) {
   try {
+    await ensureDbReady();
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
@@ -73,6 +73,7 @@ export async function getAllPosts(request: Request) {
 // POST /api/posts - Handle post actions (create, like, comment, favorite, etc.)
 export async function handlePostAction(request: Request) {
   try {
+    await ensureDbReady();
     const body = await request.json();
     
     // Validate request body against schema
@@ -345,6 +346,7 @@ export async function unfavoritePost(userUuid: string, request: Request, postId?
 // GET /api/posts/[id] - Get post by ID
 export async function getPostById(request: Request, id: string) {
   try {
+    await ensureDbReady();
     if (!id) {
       return createErrorResponse(new Error('Post ID is required'), 400);
     }
@@ -370,6 +372,7 @@ export async function getPostById(request: Request, id: string) {
 // PUT /api/posts/[id] - Update post by ID
 export async function updatePost(request: Request, id: string) {
   try {
+    await ensureDbReady();
     if (!id) {
       return createErrorResponse(new Error('Post ID is required'), 400);
     }
@@ -413,6 +416,7 @@ export async function updatePost(request: Request, id: string) {
 // DELETE /api/posts/[id] - Delete post by ID
 export async function deletePost(request: Request, id: string) {
   try {
+    await ensureDbReady();
     if (!id) {
       return createErrorResponse(new Error('Post ID is required'), 400);
     }
@@ -433,6 +437,7 @@ export async function deletePost(request: Request, id: string) {
 // GET /api/posts/search - Search posts
 export async function searchPosts(request: Request) {
   try {
+    await ensureDbReady();
     const url = new URL(request.url);
     const query = url.searchParams.get('q');
     const tags = url.searchParams.get('tags');
@@ -499,6 +504,7 @@ export async function searchPosts(request: Request) {
 // GET /api/posts/feed - Get personalized feed (posts from users in same department)
 export async function getFeed(request: Request) {
   try {
+    await ensureDbReady();
     const url = new URL(request.url);
     const userUuid = url.searchParams.get('user');
     const page = parseInt(url.searchParams.get('page') || '1');

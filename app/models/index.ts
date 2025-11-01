@@ -1,4 +1,4 @@
-import { sequelize, connectDB, syncDB } from '../../lib/database';
+import { sequelize, connectDB, syncDB, initializeDatabase as initDB } from '../../lib/database';
 import User from './user-model';
 import Post from './post-model';
 import { PostLike, PostComment, PostFavorite } from './post-interactions';
@@ -11,8 +11,7 @@ export { sequelize, connectDB, syncDB };
 
 // Initialize database connection and sync models
 export async function initializeDatabase() {
-  await connectDB();
-  await syncDB();
+  await initDB();
 }
 
 // Define all associations here (already defined in individual model files)

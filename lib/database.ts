@@ -1,10 +1,13 @@
 import { Sequelize } from 'sequelize';
+import * as sqlite3 from 'sqlite3';
 
 // Create SQLite database connection
 export const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: './database.sqlite',
-  logging: false, // Set to console.log to see SQL queries
+  logging: false,
+  // Explicitly tell Sequelize which sqlite3 driver to use so bundlers resolve it correctly
+  dialectModule: sqlite3,
 });
 
 // Test the connection
@@ -20,9 +23,27 @@ export async function connectDB() {
 // Sync all models
 export async function syncDB() {
   try {
-    await sequelize.sync({ force: false }); // Set force: true to drop and recreate tables
+    await sequelize.sync({ force: false });
     console.log('Database synchronized successfully.');
   } catch (error) {
     console.error('Unable to sync database:', error);
   }
+}
+
+// Initialize database and export
+export async function initializeDatabase() {
+  await connectDB();
+  await syncDB();
+}
+
+// Idempotent, awaited DB bootstrap for request handlers
+let dbReadyPromise: Promise<void> | null = null;
+export function ensureDbReady(): Promise<void> {
+  if (!dbReadyPromise) {
+    dbReadyPromise = (async () => {
+      await connectDB();
+      await syncDB();
+    })();
+  }
+  return dbReadyPromise;
 }

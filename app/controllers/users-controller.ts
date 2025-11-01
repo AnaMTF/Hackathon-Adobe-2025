@@ -1,10 +1,9 @@
 import { User } from '../models/user-model';
-import { initializeDatabase } from '../models';
+import { ensureDbReady } from '../../lib/database';
 import { Op } from 'sequelize';
-import { UserActionSchema, UserAction } from '../schemas/user-schemas';
+import { UserActionSchema } from '../schemas/user-schemas';
 
-// Initialize database connection
-initializeDatabase().catch(console.error);
+// Do not auto-initialize at module load to avoid races; await ensureDbReady() inside handlers
 
 // Helper function to create standardized API responses
 function createResponse(data: unknown, status: number = 200, message?: string) {
@@ -31,6 +30,7 @@ function createErrorResponse(error: unknown, status: number = 500) {
 // GET /api/users - Get all users
 export async function getAllUsers(request: Request) {
   try {
+    await ensureDbReady();
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
@@ -60,6 +60,7 @@ export async function getAllUsers(request: Request) {
 // POST /api/users - Handle user actions (create, update, delete)
 export async function handleUserAction(request: Request) {
   try {
+    await ensureDbReady();
     const body = await request.json();
     
     // Validate request body against schema
@@ -138,6 +139,7 @@ async function createUserInternal(fields: {
 // GET /api/users/[id] - Get user by ID
 export async function getUserById(request: Request, id: string) {
   try {
+    await ensureDbReady();
     if (!id) {
       return createErrorResponse({ message: 'User ID is required' }, 400);
     }
@@ -159,6 +161,7 @@ export async function getUserById(request: Request, id: string) {
 // PUT /api/users/[id] - Update user by ID
 export async function updateUser(request: Request, id: string) {
   try {
+    await ensureDbReady();
     if (!id) {
       return createErrorResponse({ message: 'User ID is required' }, 400);
     }
@@ -200,6 +203,7 @@ export async function updateUser(request: Request, id: string) {
 // DELETE /api/users/[id] - Delete user by ID
 export async function deleteUser(request: Request, id: string) {
   try {
+    await ensureDbReady();
     if (!id) {
       return createErrorResponse({ message: 'User ID is required' }, 400);
     }
@@ -220,6 +224,7 @@ export async function deleteUser(request: Request, id: string) {
 // GET /api/users/search - Search users
 export async function searchUsers(request: Request) {
   try {
+    await ensureDbReady();
     const url = new URL(request.url);
     const query = url.searchParams.get('q');
     const departament = url.searchParams.get('departament');
