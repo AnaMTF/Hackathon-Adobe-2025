@@ -113,6 +113,75 @@ export default function Header() {
     return () => window.removeEventListener('points_updated', onPointsUpdated as EventListener);
   }, []);
 
+  // Setup SSE connection for real-time message notifications
+  useEffect(() => {
+    if (!user) return; // Only connect if user is logged in
+
+    // Fetch initial unread count
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch(`/api/messages?user=${user.uuid}&unreadOnly=true&limit=1000`);
+        if (response.ok) {
+          const data = await response.json();
+          const count = data.data?.pagination?.total || 0;
+          console.log('[Header] Initial unread count:', count);
+          setUnreadCount(count);
+          localStorage.setItem('unread_messages', String(count));
+        }
+      } catch (error) {
+        console.error('[Header] Error fetching initial unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    console.log('[Header] Setting up message SSE connection for user:', user.uuid);
+    const eventSource = new EventSource('/api/messages/sse');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('[Header] SSE message received:', message);
+        
+        switch (message.type) {
+          case 'connected':
+            console.log('[Header] Message SSE connected:', message.timestamp);
+            break;
+            
+          case 'messageCreated':
+            console.log('[Header] New message received via SSE');
+            // A new message was sent to this user - will be followed by unreadCountUpdate
+            break;
+            
+          case 'messageRead':
+            console.log('[Header] Message marked as read via SSE');
+            // A message this user sent was read
+            break;
+            
+          case 'unreadCountUpdate':
+            console.log('[Header] Unread count update:', message.data.unreadCount);
+            const newCount = message.data.unreadCount;
+            setUnreadCount(newCount);
+            // Also update localStorage so it persists
+            localStorage.setItem('unread_messages', String(newCount));
+            break;
+        }
+      } catch (error) {
+        console.error('[Header] Error parsing SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('[Header] Message SSE error:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log('[Header] Closing message SSE connection');
+      eventSource.close();
+    };
+  }, [user]); // Reconnect if user changes
+
   const handleLogout = async () => {
     try {
       await logout();

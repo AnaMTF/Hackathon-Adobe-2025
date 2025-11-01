@@ -3,6 +3,7 @@ import { User } from '../models/user-model';
 import { ensureDbReady } from '../../lib/database';
 import { Op } from 'sequelize';
 import { MessageActionSchema } from '../schemas/message-schemas';
+import { messageSSEManager } from '../../lib/message-sse';
 
 // Do not auto-initialize at module load to avoid races; await ensureDbReady() inside handlers
 
@@ -226,6 +227,23 @@ async function createMessage(
       ],
     });
 
+    // Broadcast SSE notification to recipient
+    console.log('[createMessage] Broadcasting new message via SSE to recipient:', fields.recipientUuid);
+    messageSSEManager.notifyMessageCreated({
+      ...createdMessage?.toJSON(),
+      receiverUuid: fields.recipientUuid,
+    });
+
+    // Get and send updated unread count to recipient
+    const unreadCount = await Message.count({
+      where: {
+        recipientUuid: fields.recipientUuid,
+        read: null,
+      },
+    });
+    console.log('[createMessage] Sending unread count update to recipient:', unreadCount);
+    messageSSEManager.notifyUnreadCountUpdate(fields.recipientUuid, unreadCount);
+
     return createResponse(createdMessage, 201, 'Message sent successfully');
   } catch (error) {
     return createErrorResponse(error);
@@ -264,6 +282,24 @@ export async function markMessageAsRead(messageUuid: string) {
         },
       ],
     });
+
+    // Broadcast SSE notification to sender (message has been read)
+    console.log('[markMessageAsRead] Broadcasting read notification via SSE to sender:', message.senderUuid);
+    messageSSEManager.notifyMessageRead({
+      ...updatedMessage?.toJSON(),
+      senderUuid: message.senderUuid,
+      uuid: messageUuid,
+    });
+
+    // Get and send updated unread count to recipient
+    const recipientUnreadCount = await Message.count({
+      where: {
+        recipientUuid: message.recipientUuid,
+        read: null,
+      },
+    });
+    console.log('[markMessageAsRead] Sending updated unread count to recipient:', recipientUnreadCount);
+    messageSSEManager.notifyUnreadCountUpdate(message.recipientUuid, recipientUnreadCount);
 
     return createResponse(updatedMessage, 200, 'Message marked as read');
   } catch (error) {
