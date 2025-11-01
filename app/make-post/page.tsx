@@ -4,15 +4,6 @@ import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 
-type Post = {
-	id: string;
-	title: string;
-	body: string;
-	img?: string | null; // data URL
-	code?: string | null;
-	createdAt: number;
-};
-
 export default function MakePostPage() {
 	const router = useRouter();
 	const { user } = useAuth();
@@ -38,20 +29,6 @@ export default function MakePostPage() {
 		const f = e.target.files?.[0];
 		if (f) handleFile(f);
 		else setImgPreview(null);
-	};
-
-	const savePostToLocal = (post: Post) => {
-		try {
-			const raw = localStorage.getItem("feed_posts");
-			const arr: Post[] = raw ? JSON.parse(raw) : [];
-			// prepend so newest shows first
-			arr.unshift(post);
-			localStorage.setItem("feed_posts", JSON.stringify(arr));
-			// notify other parts of the app
-			window.dispatchEvent(new CustomEvent("feed_updated", { detail: post }));
-		} catch (e) {
-			console.error("Failed to save post", e);
-		}
 	};
 
 	const handleSubmit = async (e?: React.FormEvent) => {
@@ -98,17 +75,6 @@ export default function MakePostPage() {
 			if (!response.ok) {
 				throw new Error(data.message || 'Failed to create post');
 			}
-
-			// Also save to localStorage for immediate feedback (optional)
-			const localPost: Post = {
-				id: data.data.uuid || String(Date.now()),
-				title: title.trim(),
-				body: body.trim(),
-				img: imgPreview,
-				code: codeSnippet || null,
-				createdAt: Date.now(),
-			};
-			savePostToLocal(localPost);
 
 			setSuccess("Post published successfully!");
 			setTitle("");

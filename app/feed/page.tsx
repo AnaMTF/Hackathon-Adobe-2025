@@ -83,14 +83,6 @@ export default function FeedPage() {
     } catch (err) {
       console.error("Error fetching posts:", err);
       setError(err instanceof Error ? err.message : "Failed to load posts");
-      // Fallback to localStorage if API fails
-      try {
-        const raw = localStorage.getItem("feed_posts");
-        const arr: Post[] = raw ? JSON.parse(raw) : [];
-        setPosts(arr);
-      } catch (e) {
-        console.error("Failed to load from localStorage", e);
-      }
     } finally {
       setLoading(false);
     }
@@ -100,19 +92,6 @@ export default function FeedPage() {
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
-
-  // Listen for new posts in real time (for optimistic updates)
-  useEffect(() => {
-    const handleFeedUpdate = (e: CustomEvent) => {
-      setPosts((prev) => [e.detail, ...prev]);
-    };
-    window.addEventListener("feed_updated", handleFeedUpdate as EventListener);
-    return () =>
-      window.removeEventListener(
-        "feed_updated",
-        handleFeedUpdate as EventListener
-      );
-  }, []);
 
   // Like logic - call API
   const handleLike = async (postId: string) => {
@@ -162,21 +141,6 @@ export default function FeedPage() {
       // Refresh user data to update points
       await refreshUser();
 
-      // Update localStorage as well
-      const raw = localStorage.getItem("feed_posts");
-      if (raw) {
-        const arr: Post[] = JSON.parse(raw);
-        const updated = arr.map((p) => {
-          if (p.id === postId) {
-            const newLikes = alreadyLiked
-              ? p.likes?.filter((l) => l !== user.uuid)
-              : [...(p.likes || []), user.uuid];
-            return { ...p, likes: newLikes };
-          }
-          return p;
-        });
-        localStorage.setItem("feed_posts", JSON.stringify(updated));
-      }
     } catch (err) {
       console.error("Error updating like:", err);
       // Revert optimistic update on error
@@ -250,18 +214,6 @@ export default function FeedPage() {
             : p
         )
       );
-
-      // Update localStorage as well
-      const raw = localStorage.getItem("feed_posts");
-      if (raw) {
-        const arr: Post[] = JSON.parse(raw);
-        const updated = arr.map((p) =>
-          p.id === editingPost.id
-            ? { ...p, title: editTitle, body: editBody, code: editCode || null }
-            : p
-        );
-        localStorage.setItem("feed_posts", JSON.stringify(updated));
-      }
 
       setEditingPost(null);
       setEditTitle("");
