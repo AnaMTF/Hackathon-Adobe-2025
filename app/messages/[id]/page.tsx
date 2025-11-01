@@ -86,7 +86,7 @@ export default function ConversationPage() {
 
   return (
     <main className="min-h-screen bg-base-200 flex flex-col">
-      <header className="fixed top-16 z-30 w-full border-b border-base-300 bg-base-100 shadow-sm backdrop-blur-sm">
+      <header className="sticky top-16 z-30 w-full border-b border-base-300 bg-base-100 shadow-sm backdrop-blur-sm">
         <div className="container mx-auto flex items-center gap-4 p-3">
           <button
             onClick={() => router.push("/messages")}
