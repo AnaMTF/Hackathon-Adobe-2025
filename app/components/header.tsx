@@ -98,6 +98,21 @@ export default function Header() {
     return () => window.removeEventListener('cart_updated', onCartUpdated as EventListener);
   }, []);
 
+  // Listen for same-tab points updates
+  useEffect(() => {
+    const onPointsUpdated = () => {
+      try {
+        const v = localStorage.getItem('user_points');
+        setUserPoints(v ? Number(v) : 0);
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('points_updated', onPointsUpdated as EventListener);
+    return () => window.removeEventListener('points_updated', onPointsUpdated as EventListener);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -160,7 +175,7 @@ export default function Header() {
                   <span className="font-semibold">{userPoints}</span>
                 </div>
 
-                <Link href="/shop" className="btn btn-ghost btn-sm">
+                <Link href="/checkout" className="btn btn-ghost btn-sm">
                   <div className="indicator">
                     <span className="indicator-item badge badge-primary">{cartCount}</span>
                     <span aria-hidden className="text-lg">🛒</span>
@@ -168,6 +183,8 @@ export default function Header() {
                   </div>
                 </Link>
               </div>
+
+              {/* listen for same-tab points updates (dispatched by pages) */}
 
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-sm gap-2">
