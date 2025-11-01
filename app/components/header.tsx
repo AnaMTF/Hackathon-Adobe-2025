@@ -2,6 +2,7 @@
 
 import ThemeToggle from "./ThemeToggle";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import { useState, useEffect } from "react";
@@ -75,10 +76,10 @@ export default function Header() {
         <nav className="flex items-center gap-3">
           {user ? (
             <>
-              <a className="btn btn-ghost btn-sm" href="/feed">Feed</a>
-              <a className="btn btn-ghost btn-sm" href="/calendar">Calendar</a>
+              <Link className="btn btn-ghost btn-sm" href="/feed">Feed</Link>
+              <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
               
-              <a className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">
+              <Link className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">
                 Messages
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex items-center justify-center">
@@ -86,7 +87,7 @@ export default function Header() {
                     <span className="sr-only">{unreadCount} unread messages</span>
                   </span>
                 )}
-              </a>
+              </Link>
 
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-sm gap-2">
@@ -115,8 +116,8 @@ export default function Header() {
             </>
           ) : (
             <>
-              <a className="btn btn-ghost btn-sm" href="/auth">Login</a>
-              <a className="btn btn-primary btn-sm" href="/register">Register</a>
+              <Link className="btn btn-ghost btn-sm" href="/auth">Login</Link>
+              <Link className="btn btn-primary btn-sm" href="/register">Register</Link>
             </>
           )}
           <ThemeToggle />
