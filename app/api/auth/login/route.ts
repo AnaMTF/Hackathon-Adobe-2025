@@ -84,6 +84,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Update user status to online and lastSeen
+    await user.update({
+      status: 'online',
+      lastSeen: new Date(),
+    });
+
     // Generate JWT token
     const token = generateToken({
       userId: user.uuid,

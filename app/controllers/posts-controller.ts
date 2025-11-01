@@ -47,11 +47,28 @@ export async function getAllPosts(request: Request) {
 
     const posts = await Post.findAndCountAll({
       where: whereClause,
-      include: [{
-        model: User,
-        as: 'author',
-        attributes: { exclude: ['parola'] }, // Don't include password
-      }],
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: { exclude: ['parola'] }, // Don't include password
+        },
+        {
+          model: PostLike,
+          as: 'likes',
+          attributes: ['userUuid'],
+        },
+        {
+          model: PostComment,
+          as: 'comments',
+          attributes: ['id', 'userUuid', 'text', 'createdAt'],
+        },
+        {
+          model: PostFavorite,
+          as: 'favorites',
+          attributes: ['userUuid'],
+        }
+      ],
       limit,
       offset,
       order: [['timestamp', 'DESC']],
@@ -126,10 +143,10 @@ export async function handlePostAction(request: Request) {
 // Internal function to create post
 async function createPostInternal(content: {
   authorUuid: string;
-  text: string;
-  poze?: string[];
-  tags?: string[];
-  event?: { location: string; time: string | Date };
+  title: string;
+  body: string;
+  image?: string;
+  code?: string;
 }) {
   try {
     // Verify author exists
@@ -141,36 +158,27 @@ async function createPostInternal(content: {
       );
     }
 
-    // Process images if provided
-    let processedImages: string[] = [];
-    if (content.poze && content.poze.length > 0) {
-      processedImages = await Promise.all(
-        content.poze.map(async (image) => {
-          if (image && image.startsWith('data:image')) {
-            try {
-              // Optimize images: resize to 1200px width, 85% quality for posts
-              return await processImageFromBase64(image, 1200, 85);
-            } catch (error) {
-              console.error('Image processing failed:', error);
-              // Return original if processing fails
-              return image;
-            }
-          }
-          return image;
-        })
-      );
+    // Process image if provided
+    let processedImage: string | undefined = undefined;
+    if (content.image && content.image.startsWith('data:image')) {
+      try {
+        // Optimize image: resize to 1200px width, 85% quality for posts
+        processedImage = await processImageFromBase64(content.image, 1200, 85);
+      } catch (error) {
+        console.error('Image processing failed:', error);
+        // Return original if processing fails
+        processedImage = content.image;
+      }
     }
 
-    // Set default values and convert date if needed
+    // Create the post
     const postData = {
-      ...content,
-      poze: processedImages,
-      tags: content.tags || [],
+      authorUuid: content.authorUuid,
+      title: content.title,
+      body: content.body,
+      image: processedImage,
+      code: content.code || null,
       timestamp: new Date(),
-      event: content.event ? {
-        ...content.event,
-        time: typeof content.event.time === 'string' ? new Date(content.event.time) : content.event.time
-      } : undefined,
     };
 
     const post = await Post.create(postData);
@@ -237,6 +245,14 @@ export async function likePost(userUuid: string, request: Request, postId?: stri
     // Create like
     await PostLike.create({ postUuid: extractedPostId, userUuid });
 
+    // Award 1000 points to the post author
+    const postAuthor = await User.findByPk(post.authorUuid);
+    if (postAuthor) {
+      await postAuthor.update({
+        points: postAuthor.points + 1000
+      });
+    }
+
     return createResponse(null, 200, 'Post liked successfully');
   } catch (error) {
     return createErrorResponse(error);
@@ -260,7 +276,20 @@ export async function unlikePost(userUuid: string, request: Request, postId?: st
       return createErrorResponse(new Error('Like not found'), 404);
     }
 
+    // Get the post to find the author
+    const post = await Post.findByPk(extractedPostId);
+    
     await like.destroy();
+
+    // Deduct 1000 points from the post author
+    if (post) {
+      const postAuthor = await User.findByPk(post.authorUuid);
+      if (postAuthor && postAuthor.points >= 1000) {
+        await postAuthor.update({
+          points: postAuthor.points - 1000
+        });
+      }
+    }
 
     return createResponse(null, 200, 'Post unliked successfully');
   } catch (error) {
