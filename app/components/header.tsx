@@ -127,7 +127,7 @@ export default function Header() {
       <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push('/')} className="btn btn-ghost btn-sm gap-2 items-center">
+            <button onClick={() => router.push('/feed')} className="btn btn-ghost btn-sm gap-2 items-center">
               <Image src="/assets/logo.jpeg" alt="logo" width={36} height={36} className="rounded-full" />
               <span className="font-semibold">XIAT</span>
             </button>
@@ -144,7 +144,7 @@ export default function Header() {
     <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/')} className="btn btn-ghost btn-sm gap-2 items-center">
+          <button onClick={() => router.push('/feed')} className="btn btn-ghost btn-sm gap-2 items-center">
             <Image src="/assets/logo.jpeg" alt="logo" width={36} height={36} className="rounded-full" />
             <span className="font-semibold">XIAT</span>
           </button>
@@ -153,7 +153,7 @@ export default function Header() {
         <nav className="flex items-center gap-3">
           {user ? (
             <>
-              <Link className="btn btn-ghost btn-sm" href="/feed">Feed</Link>
+              <Link className="btn btn-ghost btn-sm" href="/make-post">Post Something</Link>
               <Link className="btn btn-ghost btn-sm" href="/fun-activities">Fun Corner</Link>
               <Link className="btn btn-ghost btn-sm" href="/rewards">Rewards</Link>
               <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
