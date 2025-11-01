@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
 type CartItem = { id: string; qty: number };
@@ -70,6 +70,9 @@ export default function RewardsPage() {
   }, []);
 
   const addToCart = async (item: RewardItem) => {
+    const operationId = Math.random().toString(36).substring(7);
+    console.log(`[addToCart:${operationId}] Starting redemption for ${item.title}`);
+    
     if (!user) {
       window.alert("You must be logged in to redeem items.");
       return;
@@ -77,7 +80,10 @@ export default function RewardsPage() {
 
     const key = item.slug ?? item.id;
     // guard against double clicks / race: if already processing this id, ignore
-    if (processingIds.includes(key)) return;
+    if (processingIds.includes(key)) {
+      console.log(`[addToCart:${operationId}] Already processing item:`, key);
+      return;
+    }
     setProcessingIds((s) => [...s, key]);
 
     // if user doesn't have enough points, show an alert
@@ -96,14 +102,22 @@ export default function RewardsPage() {
       return;
     }
 
+    console.log(`[addToCart] Redeeming ${item.title} for ${item.price} points. Current points: ${user.points}`);
+
     try {
+      // Get the latest user points in case it changed
+      const currentPoints = user.points;
+      const newPoints = currentPoints - item.price;
+
+      console.log(`[addToCart] Deducting points: ${currentPoints} - ${item.price} = ${newPoints}`);
+
       // Deduct points from the database
       const response = await fetch('/api/auth/update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Important: include cookies for authentication
         body: JSON.stringify({
-          points: user.points - item.price
+          points: newPoints
         }),
       });
 
@@ -113,27 +127,40 @@ export default function RewardsPage() {
         throw new Error(errorData.message || 'Failed to update points');
       }
 
-      // Add to cart
+      // Add to cart - only increment by 1
+      let addedQty = 0;
+      
       setCart((prev) => {
         const copy = [...prev];
         const idx = copy.findIndex((c) => c.id === key);
         if (idx >= 0) {
-          copy[idx].qty = (copy[idx].qty || 0) + 1;
+          const oldQty = copy[idx].qty || 0;
+          const newQty = oldQty + 1;
+          addedQty = 1;
+          console.log(`[addToCart] Incrementing cart item ${key}: ${oldQty} -> ${newQty}`);
+          copy[idx] = { ...copy[idx], qty: newQty };
         } else {
+          addedQty = 1;
+          console.log(`[addToCart] Adding new item to cart: ${key} with qty 1`);
           copy.push({ id: key, qty: 1 });
         }
         return copy;
       });
 
+      console.log(`[addToCart] Cart updated (added ${addedQty} item), refreshing user data...`);
+
       // Refresh user data to update points in UI
       await refreshUser();
+      
+      console.log('[addToCart] User data refreshed successfully');
 
     } catch (error) {
       console.error('Error redeeming item:', error);
       window.alert('Failed to redeem item. Please try again.');
+      // Don't add to cart if points deduction failed
     } finally {
-      // release processing lock
-      setTimeout(() => setProcessingIds((s) => s.filter((x) => x !== key)), 300);
+      // release processing lock immediately - no need for delay since we're async
+      setProcessingIds((s) => s.filter((x) => x !== key));
     }
   };
 
