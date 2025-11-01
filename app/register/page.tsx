@@ -17,6 +17,7 @@ export default function Register() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState("");
   const [jobTitle, setJobTitle] = useState("");
@@ -47,6 +48,8 @@ export default function Register() {
     if (!email.trim()) return setError("Email is required");
     if (!email.endsWith("@xiat.com")) return setError("Email must end with @xiat.com");
     if (!password) return setError("Password is required");
+    if (!confirmPassword) return setError("Please confirm your password");
+    if (password !== confirmPassword) return setError("Passwords do not match");
     if (!department.trim()) return setError("Department is required");
     if (!jobTitle.trim()) return setError("Job title is required");
 
@@ -56,7 +59,7 @@ export default function Register() {
       await new Promise((res) => setTimeout(res, 800));
       console.log("Registering", { fullName, email, department, jobTitle });
       // after success, navigate to login
-      router.push('/auth');
+      router.push('/feed');
     } catch (err) {
       setError("Failed to register");
     } finally {
@@ -70,21 +73,21 @@ export default function Register() {
         <div className="flex items-center gap-4 mb-6">
           <Image src="/assets/logo.jpeg" alt="logo" width={64} height={64} className="rounded-full" />
           <div>
-            <h1 className="text-2xl font-bold">Create an XIAT account</h1>
-            <p className="text-sm text-neutral">All fields marked with * are required</p>
+            <h1 className="text-2xl font-bold text-shadow-lg">Create an XIAT account</h1>
+            <p className="text-sm text-neutral text-shadow-lg">All fields marked with * are required</p>
           </div>
         </div>
 
-        {error && <div role="alert" className="alert alert-error mb-4">{error}</div>}
+  {error && <div role="alert" className="alert alert-error mb-4 text-shadow-lg">{error}</div>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="form-control">
-            <label className="label"><span className="label-text">Full name *</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Full name *</span></label>
             <input className="input input-bordered" value={fullName} onChange={(e) => setFullName(e.target.value)} required aria-required />
           </div>
 
           <div className="form-control">
-            <label className="label"><span className="label-text">Email *</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Email *</span></label>
             <input
               className="input input-bordered"
               type="email"
@@ -95,14 +98,14 @@ export default function Register() {
               aria-required
             />
             <label className="label">
-              <span className={`text-xs ${email && !email.endsWith('@xiat.com') ? 'text-error' : 'text-neutral'}`}>
+              <span className={`text-xs text-shadow-lg ${email && !email.endsWith('@xiat.com') ? 'text-error' : 'text-neutral'}`}>
                 Must end with @xiat.com
               </span>
             </label>
           </div>
 
           <div className="form-control">
-            <label className="label"><span className="label-text">Password *</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Password *</span></label>
             <input
               className="input input-bordered"
               type="password"
@@ -118,32 +121,51 @@ export default function Register() {
                   style={{ width: `${(strength / 4) * 100}%` }}
                 />
               </div>
-              <p className="text-xs mt-1 text-neutral">Password strength: {['Very weak','Weak','Okay','Good','Strong'][strength]}</p>
+              <p className="text-xs mt-1 text-neutral text-shadow-lg">Password strength: {['Very weak','Weak','Okay','Good','Strong'][strength]}</p>
             </div>
           </div>
 
           <div className="form-control">
-            <label className="label"><span className="label-text">Phone</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Confirm Password *</span></label>
+            <input
+              className="input input-bordered"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              aria-required
+            />
+            {confirmPassword && password !== confirmPassword && (
+              <label className="label">
+                <span className="text-xs text-error text-shadow-lg">
+                  Passwords do not match
+                </span>
+              </label>
+            )}
+          </div>
+
+          <div className="form-control">
+            <label className="label"><span className="label-text text-shadow-lg">Phone</span></label>
             <input className="input input-bordered" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="optional" />
           </div>
 
           <div className="form-control">
-            <label className="label"><span className="label-text">Department *</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Department *</span></label>
             <input className="input input-bordered" value={department} onChange={(e) => setDepartment(e.target.value)} required aria-required />
           </div>
 
           <div className="form-control">
-            <label className="label"><span className="label-text">Job title *</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Job title *</span></label>
             <input className="input input-bordered" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} required aria-required />
           </div>
 
           <div className="form-control">
-            <label className="label"><span className="label-text">Location</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Location</span></label>
             <input className="input input-bordered" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="optional" />
           </div>
 
           <div className="form-control md:col-span-2">
-            <label className="label"><span className="label-text">Profile picture</span></label>
+            <label className="label"><span className="label-text text-shadow-lg">Profile picture</span></label>
             <div className="flex items-center gap-4">
               <input
                 ref={fileRef}
@@ -156,19 +178,19 @@ export default function Register() {
                 }}
               />
               {profilePreview ? (
-                <div className="w-24 h-24 rounded overflow-hidden">
-                  <img src={profilePreview} alt="preview" className="w-full h-full object-cover" />
+                <div className="w-24 h-24 rounded-full overflow-hidden">
+                  <img src={profilePreview} alt="preview" className="w-full h-full object-cover rounded-full" />
                 </div>
               ) : (
-                <div className="avatar placeholder w-24 h-24 flex items-center justify-center bg-base-200 text-neutral">Preview</div>
+                <div className="avatar placeholder w-24 h-24 flex items-center justify-center bg-base-200 text-neutral text-shadow-lg rounded-full">Preview</div>
               )}
             </div>
           </div>
         </div>
 
         <div className="mt-6 flex gap-3 justify-end">
-          <button type="button" className="btn btn-ghost" onClick={() => router.push('/auth')}>Back</button>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button type="button" className="btn btn-ghost text-shadow-lg" onClick={() => router.push('/auth')}>Back</button>
+          <button type="submit" className="btn btn-primary text-shadow-lg" disabled={loading}>
             {loading ? 'Creating...' : 'Create account'}
           </button>
         </div>
