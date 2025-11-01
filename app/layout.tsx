@@ -1,5 +1,6 @@
 import "./globals.css";
 import Header from "./components/header";
+import { AuthProvider } from "./contexts/AuthContext";
 
 export default function RootLayout({
   children,
@@ -9,8 +10,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <Header />
-        {children}
+        <AuthProvider>
+          <Header />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

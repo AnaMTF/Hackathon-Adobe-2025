@@ -69,11 +69,9 @@ User.init(
       },
     },
     poza: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT, // Changed to TEXT to store base64 images
       allowNull: true,
-      validate: {
-        isUrl: true,
-      },
+      // Removed URL validation since we're storing base64 data
     },
     telefon: {
       type: DataTypes.STRING,

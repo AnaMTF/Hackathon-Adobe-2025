@@ -7,7 +7,7 @@ export const UserUpdateSchema = z.object({
     numeFullName: z.string().min(1).max(100).optional(),
     email: z.string().email().optional(),
     parola: z.string().min(6).max(255).optional(),
-    poza: z.string().url().optional(),
+    poza: z.string().optional(), // Base64 image data
     telefon: z.string().regex(/^[+]?[\d\s-().]+$/).optional(),
     departament: z.string().min(1).max(100).optional(),
     jobTitle: z.string().min(1).max(100).optional(),
@@ -24,7 +24,7 @@ export const UserCreateSchema = z.object({
     numeFullName: z.string().min(1).max(100),
     email: z.string().email(),
     parola: z.string().min(6).max(255),
-    poza: z.string().url().optional(),
+    poza: z.string().optional(), // Base64 image data
     telefon: z.string().regex(/^[+]?[\d\s-().]+$/).optional(),
     departament: z.string().min(1).max(100),
     jobTitle: z.string().min(1).max(100),

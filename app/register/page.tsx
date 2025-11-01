@@ -25,18 +25,51 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
+  const [profileBase64, setProfileBase64] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
   const strength = passwordStrength(password);
 
-  const handleFile = (file?: File | null) => {
+  const handleFile = async (file?: File | null) => {
     if (!file) {
       setProfilePreview(null);
+      setProfileBase64(null);
       return;
     }
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image file size must be less than 10MB');
+      return;
+    }
+
+    // Create preview URL
     const url = URL.createObjectURL(file);
     setProfilePreview(url);
+
+    // Convert to base64
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setProfileBase64(base64String);
+      };
+      reader.onerror = () => {
+        setError('Failed to read image file');
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error reading file:', err);
+      setError('Failed to process image');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,13 +88,35 @@ export default function Register() {
 
     setLoading(true);
     try {
-      // TODO: send data to API route for registration
-      await new Promise((res) => setTimeout(res, 800));
-      console.log("Registering", { fullName, email, department, jobTitle });
-      // after success, navigate to login
+      // Send data to API route for registration
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          numeFullName: fullName,
+          email: email,
+          parola: password,
+          departament: department,
+          jobTitle: jobTitle,
+          telefon: phone || '',
+          location: location || '',
+          poza: profileBase64 || '', // Use base64 string instead of preview URL
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to register');
+      }
+
+      // After successful registration, user is automatically logged in
+      // Navigate to feed
       router.push('/feed');
     } catch (err) {
-      setError("Failed to register");
+      setError(err instanceof Error ? err.message : "Failed to register");
     } finally {
       setLoading(false);
     }

@@ -3,24 +3,42 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function Auth() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    
     try {
-      // TODO: wire this to your auth API
-      await new Promise((res) => setTimeout(res, 600));
-      console.log("Logging in", { username });
-      // on success, redirect or update app state
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          parola: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to log in');
+      }
+
+      // On success, redirect to feed
+      router.push('/feed');
     } catch (err) {
-      setError("Failed to log in");
+      setError(err instanceof Error ? err.message : "Failed to log in");
     } finally {
       setLoading(false);
     }
@@ -52,16 +70,16 @@ export default function Auth() {
 
           <div className="form-control mb-4">
             <label className="label">
-              <span className="label-text text-shadow-lg">Username</span>
+              <span className="label-text text-shadow-lg">Email</span>
             </label>
             <input
-              type="text"
-              placeholder="your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              placeholder="name@xiat.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="input input-bordered w-full"
               required
-              aria-label="username"
+              aria-label="email"
             />
           </div>
 
@@ -97,7 +115,7 @@ export default function Auth() {
             </Link>
           </div>
 
-          <p className="text-xs text-shadow-lg text-neutral mt-4">This is a demo UI — wire it to your backend to enable real auth.</p>
+          <p className="text-xs text-shadow-lg text-neutral mt-4">Secure authentication for XIAT employees</p>
         </div>
 
         <div className="hidden md:flex flex-col items-center justify-center p-4">
