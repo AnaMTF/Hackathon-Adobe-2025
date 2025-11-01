@@ -279,7 +279,11 @@ export default function Header() {
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex items-center justify-center">
                     <span
-                      className="inline-block h-2 w-2 rounded-full bg-error animate-bounce shadow-md"
+                      className="inline-block h-2 w-2 rounded-full bg-error shadow-md"
+                      aria-hidden
+                    />
+                    <span
+                      className="absolute inline-block h-2 w-2 rounded-full bg-error animate-ping"
                       aria-hidden
                     />
                     <span className="sr-only">
