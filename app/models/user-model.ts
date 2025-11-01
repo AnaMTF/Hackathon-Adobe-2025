@@ -12,12 +12,14 @@ export interface UserAttributes {
   departament: string;
   jobTitle: string;
   location?: string; // optional
+  status?: 'online' | 'away' | 'busy' | 'offline'; // user's availability status
+  lastSeen?: Date; // last activity timestamp
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 // Optional attributes for creation (uuid will be auto-generated)
-type UserCreationAttributes = Optional<UserAttributes, 'uuid' | 'poza' | 'telefon' | 'location' | 'createdAt' | 'updatedAt'>;
+type UserCreationAttributes = Optional<UserAttributes, 'uuid' | 'poza' | 'telefon' | 'location' | 'status' | 'lastSeen' | 'createdAt' | 'updatedAt'>;
 
 // User model class - DO NOT declare public fields, they shadow Sequelize getters/setters
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
@@ -30,6 +32,8 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   declare departament: string;
   declare jobTitle: string;
   declare location?: string;
+  declare status?: 'online' | 'away' | 'busy' | 'offline';
+  declare lastSeen?: Date;
 
   // Timestamps
   declare readonly createdAt: Date;
@@ -102,6 +106,15 @@ User.init(
       validate: {
         len: [1, 255],
       },
+    },
+    status: {
+      type: DataTypes.ENUM('online', 'away', 'busy', 'offline'),
+      allowNull: false,
+      defaultValue: 'offline',
+    },
+    lastSeen: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
   },
   {

@@ -155,7 +155,7 @@ export async function handleMessageAction(request: Request) {
 
     switch (action) {
       case 'create':
-        return await createMessage(validation.data.fields, request);
+        return await createMessage(validation.data.fields);
       case 'markRead':
         return createErrorResponse(
           new Error('Use PUT /api/messages/[id] to mark as read'),
@@ -176,40 +176,34 @@ export async function handleMessageAction(request: Request) {
 
 // Helper: Create a new message
 async function createMessage(
-  fields: { recipientUuid: string; text: string },
-  request: Request
+  fields: { recipientUuid: string; text: string; senderUuid: string }
 ) {
   try {
-    // Get sender UUID from request (assuming auth context provides it)
-    const url = new URL(request.url);
-    const senderUuid = url.searchParams.get('sender');
-
-    if (!senderUuid) {
-      return createErrorResponse(
-        new Error('Sender UUID is required'),
-        400
-      );
-    }
+    console.log('[createMessage] Starting message creation with data:', fields);
 
     // Verify sender exists
-    const sender = await User.findByPk(senderUuid);
+    const sender = await User.findByPk(fields.senderUuid);
     if (!sender) {
+      console.error('[createMessage] Sender user not found:', fields.senderUuid);
       return createErrorResponse(new Error('Sender not found'), 404);
     }
 
     // Verify recipient exists
     const recipient = await User.findByPk(fields.recipientUuid);
     if (!recipient) {
+      console.error('[createMessage] Recipient not found:', fields.recipientUuid);
       return createErrorResponse(new Error('Recipient not found'), 404);
     }
 
     // Create the message
+    console.log('[createMessage] Creating message in database...');
     const message = await Message.create({
-      senderUuid,
+      senderUuid: fields.senderUuid,
       recipientUuid: fields.recipientUuid,
       text: fields.text,
       read: null,
     });
+    console.log('[createMessage] Message created with UUID:', message.uuid);
 
     // Fetch the created message with associations
     const createdMessage = await Message.findByPk(message.uuid, {
@@ -227,11 +221,15 @@ async function createMessage(
       ],
     });
 
-    // Broadcast SSE notification to recipient
-    console.log('[createMessage] Broadcasting new message via SSE to recipient:', fields.recipientUuid);
-    messageSSEManager.notifyMessageCreated({
-      ...createdMessage?.toJSON(),
-      receiverUuid: fields.recipientUuid,
+    // Broadcast SSE notification to ALL connected clients (simpler and more reliable)
+    console.log('[createMessage] Broadcasting new message via SSE to all clients');
+    messageSSEManager.broadcast({
+      type: 'messageCreated',
+      data: {
+        ...createdMessage?.toJSON(),
+        senderUuid: fields.senderUuid,
+        recipientUuid: fields.recipientUuid,
+      }
     });
 
     // Get and send updated unread count to recipient
@@ -242,7 +240,13 @@ async function createMessage(
       },
     });
     console.log('[createMessage] Sending unread count update to recipient:', unreadCount);
-    messageSSEManager.notifyUnreadCountUpdate(fields.recipientUuid, unreadCount);
+    messageSSEManager.broadcast({
+      type: 'unreadCountUpdate',
+      data: {
+        userId: fields.recipientUuid,
+        unreadCount
+      }
+    });
 
     return createResponse(createdMessage, 201, 'Message sent successfully');
   } catch (error) {
