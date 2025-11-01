@@ -350,16 +350,28 @@ export default function Header() {
                       <span>Set status</span>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('online')}>Online</button>
+                      <button onClick={() => handleSetStatus('online')} className="flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-success" aria-hidden />
+                        <span>Online</span>
+                      </button>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('away')}>Away</button>
+                      <button onClick={() => handleSetStatus('away')} className="flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-warning" aria-hidden />
+                        <span>Away</span>
+                      </button>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('busy')}>Busy</button>
+                      <button onClick={() => handleSetStatus('busy')} className="flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-error" aria-hidden />
+                        <span>Busy</span>
+                      </button>
                     </li>
                     <li>
-                      <button onClick={() => handleSetStatus('offline')}>Offline</button>
+                      <button onClick={() => handleSetStatus('offline')} className="flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-neutral" aria-hidden />
+                        <span>Offline</span>
+                      </button>
                     </li>
                     <li className="divider" />
                     <li>
