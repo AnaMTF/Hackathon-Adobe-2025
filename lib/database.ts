@@ -10,6 +10,23 @@ export const sequelize = new Sequelize({
   dialectModule: sqlite3,
 });
 
+// Import all models to ensure they're registered with Sequelize
+// This must happen before any sync operations
+let modelsImported = false;
+async function importAllModels() {
+  if (modelsImported) return;
+  
+  // Import all model files to register them with Sequelize
+  await import('../app/models/user-model');
+  await import('../app/models/post-model');
+  await import('../app/models/post-interactions');
+  await import('../app/models/event-model');
+  await import('../app/models/message-model');
+  
+  modelsImported = true;
+  console.log('All models imported and registered.');
+}
+
 // Test the connection
 export async function connectDB() {
   try {
@@ -23,6 +40,9 @@ export async function connectDB() {
 // Sync all models
 export async function syncDB() {
   try {
+    // Ensure all models are imported before syncing
+    await importAllModels();
+    
     await sequelize.sync({ force: false });
     console.log('Database synchronized successfully.');
   } catch (error) {
