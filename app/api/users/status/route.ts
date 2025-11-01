@@ -8,9 +8,13 @@ export const dynamic = 'force-dynamic';
 
 // PUT /api/users/status - Update current user's status
 export async function PUT(request: NextRequest) {
+  console.log('[/api/users/status PUT] Request received');
   try {
     const currentUser = await getCurrentUser();
+    console.log('[/api/users/status PUT] Current user:', currentUser);
+    
     if (!currentUser?.userId) {
+      console.log('[/api/users/status PUT] Unauthorized - no user');
       return new Response(JSON.stringify({
         success: false,
         message: 'Unauthorized',
@@ -18,16 +22,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log('[/api/users/status PUT] Request body:', body);
     const { status } = body;
 
     if (!status || !['online', 'away', 'busy', 'offline'].includes(status)) {
+      console.log('[/api/users/status PUT] Invalid status:', status);
       return new Response(JSON.stringify({
         success: false,
         message: 'Invalid status. Must be one of: online, away, busy, offline',
       }), { status: 400 });
     }
 
-    return await updateUserStatus(currentUser.userId, status);
+    console.log('[/api/users/status PUT] Calling updateUserStatus with userId:', currentUser.userId, 'status:', status);
+    const result = await updateUserStatus(currentUser.userId, status);
+    console.log('[/api/users/status PUT] Result:', result);
+    return result;
   } catch (error) {
     console.error('[/api/users/status] Error:', error);
     return new Response(JSON.stringify({

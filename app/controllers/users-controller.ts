@@ -290,18 +290,25 @@ export async function searchUsers(request: Request) {
 
 // PUT /api/users/[id]/status - Update user status
 export async function updateUserStatus(userId: string, status: 'online' | 'away' | 'busy' | 'offline') {
+  console.log('[updateUserStatus] Called with userId:', userId, 'status:', status);
   try {
     await ensureDbReady();
+    console.log('[updateUserStatus] Database ready');
 
     const user = await User.findByPk(userId);
+    console.log('[updateUserStatus] User found:', user ? 'yes' : 'no');
+    
     if (!user) {
+      console.log('[updateUserStatus] User not found');
       return createErrorResponse(new Error('User not found'), 404);
     }
 
+    console.log('[updateUserStatus] Updating user status from', user.status, 'to', status);
     await user.update({
       status,
       lastSeen: new Date(),
     });
+    console.log('[updateUserStatus] User updated successfully. New status:', user.status);
 
     // Broadcast status change via SSE to all connected clients
     console.log(`[updateUserStatus] Broadcasting status change for user ${userId}: ${status}`);
@@ -318,8 +325,10 @@ export async function updateUserStatus(userId: string, status: 'online' | 'away'
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { parola, ...userResponse } = userJson;
 
+    console.log('[updateUserStatus] Returning success response');
     return createResponse(userResponse, 200, 'Status updated successfully');
   } catch (error) {
+    console.error('[updateUserStatus] Error:', error);
     return createErrorResponse(error);
   }
 }

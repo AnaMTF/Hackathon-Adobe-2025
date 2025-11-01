@@ -170,29 +170,39 @@ export default function Header() {
   };
 
   const handleSetStatus = async (status: 'online' | 'away' | 'busy' | 'offline') => {
+    console.log('[Header] handleSetStatus called with status:', status);
     try {
+      console.log('[Header] Sending PUT request to /api/users/status');
       const res = await fetch('/api/users/status', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
 
+      console.log('[Header] Response status:', res.status);
       const data = await res.json();
+      console.log('[Header] Response data:', data);
+      
       if (!res.ok || !data.success) {
+        console.error('[Header] Failed to update status:', data?.message);
         window.alert('Failed to update status: ' + (data?.message || 'Unknown error'));
         return;
       }
 
+      console.log('[Header] Status updated successfully, refreshing user data');
       // Refresh local user state and notify other components
       try {
         await refreshUser();
+        console.log('[Header] User data refreshed');
       } catch (e) {
+        console.error('[Header] Failed to refresh user:', e);
         // still proceed
       }
 
       window.dispatchEvent(new CustomEvent('user_status_updated', { detail: { status } }));
+      console.log('[Header] Status update complete');
     } catch (err) {
-      console.error('Failed to set status', err);
+      console.error('[Header] Failed to set status', err);
       window.alert('Failed to update status. See console for details.');
     }
   };
