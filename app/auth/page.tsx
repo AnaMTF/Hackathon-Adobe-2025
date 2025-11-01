@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Auth() {
   const [username, setUsername] = useState("");
@@ -25,97 +26,95 @@ export default function Auth() {
     }
   };
 
-  const handleRegister = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      // TODO: wire this to your registration API
-      await new Promise((res) => setTimeout(res, 600));
-      console.log("Register", { username });
-    } catch (err) {
-      setError("Failed to register");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <main className="min-h-screen flex items-center justify-center bg-base-200">
       <div className="absolute top-8 flex flex-col items-center">
         <Image
           src="/assets/logo.jpeg"
           alt="App Logo"
-          width={164}
-          height={164}
-          className="mb-2"
+          width={120}
+          height={120}
+          className="mb-2 rounded-full"
         />
-        <h2 className="text-3xl font-bold">Welcome to XIAT Employee Log in Page</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight">XIAT Employee Portal</h2>
+        <p className="text-sm text-neutral">Secure access for XIAT team members</p>
       </div>
+
       <form
         onSubmit={handleSubmit}
-        className="card w-full max-w-md bg-base-100 shadow-md p-6"
+        className="card w-full max-w-xl bg-base-100 shadow-xl p-8 grid grid-cols-1 md:grid-cols-2 gap-6 items-center"
         aria-labelledby="auth-heading"
       >
-        <h1 id="auth-heading" className="text-2xl font-bold mb-4 text-center">
-          Sign in
-        </h1>
+        <div className="px-2">
+          <h1 id="auth-heading" className="text-2xl font-bold mb-4">
+            Sign in
+          </h1>
 
-        <div className="form-control mb-3">
-          <label className="label">
-            <span className="label-text">Username</span>
-          </label>
-          <input
-            type="text"
-            placeholder="your username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="input input-bordered"
-            required
-            aria-label="username"
-          />
+          <div className="form-control mb-4">
+            <label className="label">
+              <span className="label-text">Username</span>
+            </label>
+            <input
+              type="text"
+              placeholder="your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="input input-bordered w-full"
+              required
+              aria-label="username"
+            />
+          </div>
+
+          <div className="form-control mb-4">
+            <label className="label">
+              <span className="label-text">Password</span>
+            </label>
+            <input
+              type="password"
+              placeholder="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input input-bordered w-full"
+              required
+              aria-label="password"
+            />
+          </div>
+
+          {error && <p className="text-sm text-error mb-3">{error}</p>}
+
+          <div className="flex gap-3 mt-2">
+            <button
+              type="submit"
+              className="btn btn-primary flex-1"
+              disabled={loading}
+              aria-disabled={loading}
+            >
+              {loading ? "Please wait..." : "Log in"}
+            </button>
+
+            <Link href="/register" className="btn btn-outline flex-1 text-center">
+              Register
+            </Link>
+          </div>
+
+          <p className="text-xs text-neutral mt-4">This is a demo UI — wire it to your backend to enable real auth.</p>
         </div>
 
-        <div className="form-control mb-4">
-          <label className="label">
-            <span className="label-text">Password</span>
-          </label>
-          <input
-            type="password"
-            placeholder="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input input-bordered"
-            required
-            aria-label="password"
-          />
+        <div className="hidden md:flex flex-col items-center justify-center p-4">
+          <div className="w-full flex items-center justify-center mb-3">
+            <div className="p-4 rounded-lg bg-gradient-to-br from-primary to-accent text-white w-full text-center">
+              <h3 className="text-lg font-bold">Welcome back!</h3>
+              <p className="text-sm opacity-90">Enter your credentials to access the XIAT internal tools.</p>
+            </div>
+          </div>
+          <div className="w-full mt-4">
+            <ul className="text-sm list-disc list-inside text-neutral">
+              <li>Secure connection</li>
+              <li>Company-only access</li>
+              <li>Need an account? Click Register</li>
+            </ul>
+          </div>
         </div>
-
-        {error && <p className="text-sm text-error mb-3">{error}</p>}
-
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            className="btn btn-primary flex-1"
-            disabled={loading}
-            aria-disabled={loading}
-          >
-            {loading ? "Please wait..." : "Log in"}
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={handleRegister}
-            disabled={loading}
-            aria-disabled={loading}
-          >
-            Register
-          </button>
-        </div>
-
-        <p className="text-xs text-center text-neutral mt-4">
-          This is a demo UI — wire it to your backend to enable real auth.
-        </p>
       </form>
     </main>
   );
