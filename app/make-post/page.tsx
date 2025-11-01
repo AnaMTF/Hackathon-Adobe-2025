@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
 
 type Post = {
 	id: string;
@@ -14,12 +15,14 @@ type Post = {
 
 export default function MakePostPage() {
 	const router = useRouter();
+	const { user } = useAuth();
 	const [title, setTitle] = useState("");
 	const [body, setBody] = useState("");
 	const [imgPreview, setImgPreview] = useState<string | null>(null);
 	const [codeSnippet, setCodeSnippet] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [success, setSuccess] = useState("");
+	const [error, setError] = useState("");
 	const fileRef = useRef<HTMLInputElement | null>(null);
 
 	const handleFile = (file?: File) => {
@@ -53,36 +56,83 @@ export default function MakePostPage() {
 
 	const handleSubmit = async (e?: React.FormEvent) => {
 		e?.preventDefault();
+		
 		if (!title.trim() && !body.trim()) {
-			window.alert("Please enter a title or body for your post.");
+			setError("Please enter a title or body for your post.");
+			return;
+		}
+
+		if (!user) {
+			setError("You must be logged in to create a post.");
 			return;
 		}
 
 		setSubmitting(true);
-		const post: Post = {
-			id: String(Date.now()),
-			title: title.trim(),
-			body: body.trim(),
-			img: imgPreview,
-			code: codeSnippet || null,
-			createdAt: Date.now(),
-		};
+		setError("");
+		setSuccess("");
 
-		savePostToLocal(post);
-		setSuccess("Post published!");
-		setTitle("");
-		setBody("");
-		setImgPreview(null);
-		setCodeSnippet("");
-		if (fileRef.current) fileRef.current.value = "";
+		try {
+			// Combine title and body for the API text field
+			const postText = title.trim() 
+				? (body.trim() ? `${title.trim()}\n\n${body.trim()}` : title.trim())
+				: body.trim();
 
-		// small delay so user sees success then redirect to /feed
-		setTimeout(() => {
-			setSuccess("");
-			router.push("/feed");
-		}, 800);
+			// Prepare the API request payload
+			const payload = {
+				action: "create" as const,
+				content: {
+					authorUuid: user.uuid,
+					text: postText,
+					poze: imgPreview ? [imgPreview] : [],
+					tags: [],
+				}
+			};
 
-		setSubmitting(false);
+			// Send to API
+			const response = await fetch('/api/posts', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(payload),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data.message || 'Failed to create post');
+			}
+
+			// Also save to localStorage for immediate feedback (optional)
+			const localPost: Post = {
+				id: data.data.uuid || String(Date.now()),
+				title: title.trim(),
+				body: body.trim(),
+				img: imgPreview,
+				code: codeSnippet || null,
+				createdAt: Date.now(),
+			};
+			savePostToLocal(localPost);
+
+			setSuccess("Post published successfully!");
+			setTitle("");
+			setBody("");
+			setImgPreview(null);
+			setCodeSnippet("");
+			if (fileRef.current) fileRef.current.value = "";
+
+			// Redirect to feed
+			setTimeout(() => {
+				setSuccess("");
+				router.push("/feed");
+			}, 800);
+
+		} catch (err) {
+			console.error('Error creating post:', err);
+			setError(err instanceof Error ? err.message : 'Failed to create post');
+		} finally {
+			setSubmitting(false);
+		}
 	};
 
 	const handleCancel = () => {
@@ -172,6 +222,7 @@ export default function MakePostPage() {
 						</div>
 					</div>
 
+					{error && <div className="alert alert-error mt-2">{error}</div>}
 					{success && <div className="alert alert-success mt-2">{success}</div>}
 				</form>
 			</div>

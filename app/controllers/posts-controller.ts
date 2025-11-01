@@ -47,11 +47,28 @@ export async function getAllPosts(request: Request) {
 
     const posts = await Post.findAndCountAll({
       where: whereClause,
-      include: [{
-        model: User,
-        as: 'author',
-        attributes: { exclude: ['parola'] }, // Don't include password
-      }],
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: { exclude: ['parola'] }, // Don't include password
+        },
+        {
+          model: PostLike,
+          as: 'likes',
+          attributes: ['userUuid'],
+        },
+        {
+          model: PostComment,
+          as: 'comments',
+          attributes: ['id', 'userUuid', 'text', 'createdAt'],
+        },
+        {
+          model: PostFavorite,
+          as: 'favorites',
+          attributes: ['userUuid'],
+        }
+      ],
       limit,
       offset,
       order: [['timestamp', 'DESC']],

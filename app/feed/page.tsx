@@ -1,7 +1,28 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
+// API Post structure
+type ApiPost = {
+  uuid: string;
+  authorUuid: string;
+  text: string;
+  poze: string[];
+  tags: string[];
+  timestamp: Date | string;
+  author?: {
+    uuid: string;
+    numeFullName: string;
+    poza?: string;
+    jobTitle?: string;
+  };
+  likes?: { userUuid: string }[];
+  comments?: { userUuid: string; text: string }[];
+  favorites?: { userUuid: string }[];
+};
+
+// Display Post structure
 type Post = {
   id: string;
   title: string;
@@ -10,24 +31,82 @@ type Post = {
   code?: string | null;
   createdAt: number;
   author?: string;
+  authorName?: string;
+  authorPhoto?: string;
   likes?: string[];
 };
 
 export default function FeedPage() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [editingPost, setEditingPost] = useState<Post | null>(null);
-  const loggedInUser = "you"; // simulate logged-in user
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const [imgPreview, setImgPreview] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editCode, setEditCode] = useState("");
+  const [updating, setUpdating] = useState(false);
 
-  // Load posts from localStorage
-  useEffect(() => {
-    const raw = localStorage.getItem("feed_posts");
-    const arr: Post[] = raw ? JSON.parse(raw) : [];
-    setPosts(arr);
+  // Transform API post to display format
+  const transformApiPost = (apiPost: ApiPost): Post => {
+    // Split text into title and body (if it has double newline)
+    const textParts = apiPost.text.split('\n\n');
+    const title = textParts.length > 1 ? textParts[0] : '';
+    const body = textParts.length > 1 ? textParts.slice(1).join('\n\n') : apiPost.text;
+
+    return {
+      id: apiPost.uuid,
+      title,
+      body,
+      img: apiPost.poze && apiPost.poze.length > 0 ? apiPost.poze[0] : null,
+      code: null, // Code snippets not supported in API yet
+      createdAt: new Date(apiPost.timestamp).getTime(),
+      author: apiPost.authorUuid,
+      authorName: apiPost.author?.numeFullName || 'Unknown User',
+      authorPhoto: apiPost.author?.poza,
+      likes: apiPost.likes?.map(l => l.userUuid) || [],
+    };
+  };
+
+  // Fetch posts from API
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      const response = await fetch('/api/posts?page=1&limit=50');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch posts');
+      }
+
+      const apiPosts: ApiPost[] = data.data.posts || [];
+      const transformedPosts = apiPosts.map(transformApiPost);
+      setPosts(transformedPosts);
+
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load posts');
+      // Fallback to localStorage if API fails
+      try {
+        const raw = localStorage.getItem("feed_posts");
+        const arr: Post[] = raw ? JSON.parse(raw) : [];
+        setPosts(arr);
+      } catch (e) {
+        console.error('Failed to load from localStorage', e);
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Listen for new posts in real time
+  // Load posts from API on mount
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  // Listen for new posts in real time (for optimistic updates)
   useEffect(() => {
     const handleFeedUpdate = (e: CustomEvent) => {
       setPosts((prev) => [e.detail, ...prev]);
@@ -37,50 +116,160 @@ export default function FeedPage() {
       window.removeEventListener("feed_updated", handleFeedUpdate as EventListener);
   }, []);
 
-  // Like logic
-  const handleLike = (id: string) => {
+  // Like logic - call API
+  const handleLike = async (postId: string) => {
+    if (!user) {
+      setError("You must be logged in to like posts");
+      return;
+    }
+
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const alreadyLiked = post.likes?.includes(user.uuid);
+    const action = alreadyLiked ? 'unlike' : 'like';
+
+    // Optimistic update
     setPosts((prev) => {
-      const updated = prev.map((post) => {
-        if (post.id === id) {
-          const alreadyLiked = post.likes?.includes(loggedInUser);
+      return prev.map((p) => {
+        if (p.id === postId) {
           const newLikes = alreadyLiked
-            ? post.likes?.filter((l) => l !== loggedInUser)
-            : [...(post.likes || []), loggedInUser];
-          return { ...post, likes: newLikes };
+            ? p.likes?.filter((l) => l !== user.uuid)
+            : [...(p.likes || []), user.uuid];
+          return { ...p, likes: newLikes };
         }
-        return post;
+        return p;
       });
-      localStorage.setItem("feed_posts", JSON.stringify(updated));
-      return updated;
     });
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          content: {
+            userUuid: user.uuid,
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to update like');
+      }
+
+      // Update localStorage as well
+      const raw = localStorage.getItem("feed_posts");
+      if (raw) {
+        const arr: Post[] = JSON.parse(raw);
+        const updated = arr.map((p) => {
+          if (p.id === postId) {
+            const newLikes = alreadyLiked
+              ? p.likes?.filter((l) => l !== user.uuid)
+              : [...(p.likes || []), user.uuid];
+            return { ...p, likes: newLikes };
+          }
+          return p;
+        });
+        localStorage.setItem("feed_posts", JSON.stringify(updated));
+      }
+
+    } catch (err) {
+      console.error('Error updating like:', err);
+      // Revert optimistic update on error
+      setPosts((prev) => {
+        return prev.map((p) => {
+          if (p.id === postId) {
+            const revertedLikes = alreadyLiked
+              ? [...(p.likes || []), user.uuid]
+              : p.likes?.filter((l) => l !== user.uuid);
+            return { ...p, likes: revertedLikes };
+          }
+          return p;
+        });
+      });
+      setError('Failed to update like');
+    }
   };
 
   // Handle edit button click
   const startEdit = (post: Post) => {
     setEditingPost(post);
-    setImgPreview(post.img || null);
-  };
-
-  // Handle file change in modal
-  const handleFileChange = (file?: File | null) => {
-    if (!file) return setImgPreview(null);
-    const reader = new FileReader();
-    reader.onload = () => setImgPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    setEditTitle(post.title);
+    setEditBody(post.body);
+    setEditCode(post.code || "");
   };
 
   // Save edited post
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingPost) return;
+    if (!editingPost || !user) return;
 
-    const updatedPosts = posts.map((p) =>
-      p.id === editingPost.id ? { ...editingPost, img: imgPreview } : p
-    );
-    setPosts(updatedPosts);
-    localStorage.setItem("feed_posts", JSON.stringify(updatedPosts));
+    setUpdating(true);
+    setError("");
+
+    try {
+      // Combine title and body for the API text field
+      const postText = editTitle.trim() 
+        ? (editBody.trim() ? `${editTitle.trim()}\n\n${editBody.trim()}` : editTitle.trim())
+        : editBody.trim();
+
+      const response = await fetch(`/api/posts/${editingPost.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: postText,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to update post');
+      }
+
+      // Update local state
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === editingPost.id
+            ? { ...p, title: editTitle, body: editBody, code: editCode || null }
+            : p
+        )
+      );
+
+      // Update localStorage as well
+      const raw = localStorage.getItem("feed_posts");
+      if (raw) {
+        const arr: Post[] = JSON.parse(raw);
+        const updated = arr.map((p) =>
+          p.id === editingPost.id
+            ? { ...p, title: editTitle, body: editBody, code: editCode || null }
+            : p
+        );
+        localStorage.setItem("feed_posts", JSON.stringify(updated));
+      }
+
+      setEditingPost(null);
+      setEditTitle("");
+      setEditBody("");
+      setEditCode("");
+    } catch (err) {
+      console.error('Error updating post:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update post');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const cancelEdit = () => {
     setEditingPost(null);
-    setImgPreview(null);
+    setEditTitle("");
+    setEditBody("");
+    setEditCode("");
   };
 
   return (
@@ -88,16 +277,28 @@ export default function FeedPage() {
       <div className="w-full max-w-2xl space-y-6">
         <h1 className="text-2xl font-bold mb-6 text-center">Feed</h1>
 
-        {posts.length === 0 && (
+        {error && (
+          <div className="alert alert-error">
+            <span>{error}</span>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex justify-center items-center py-12">
+            <span className="loading loading-spinner loading-lg"></span>
+          </div>
+        )}
+
+        {!loading && posts.length === 0 && (
           <p className="text-gray-500 text-center">
             No posts yet. Be the first to post!
           </p>
         )}
 
-        {posts.map((post) => {
-          const isOwnPost = post.author === loggedInUser || !post.author;
+        {!loading && posts.map((post) => {
+          const isOwnPost = user && post.author === user.uuid;
           const likesCount = post.likes?.length || 0;
-          const liked = post.likes?.includes(loggedInUser);
+          const liked = user && post.likes?.includes(user.uuid);
 
           return (
             <div
@@ -107,7 +308,7 @@ export default function FeedPage() {
               {/* Author and timestamp */}
               <div className="flex justify-between items-center mb-3">
                 <p className="font-semibold text-primary">
-                  {post.author ?? "You"}
+                  {post.authorName || "Unknown User"}
                 </p>
                 <p className="text-xs text-gray-400">
                   {new Date(post.createdAt).toLocaleString()}
@@ -138,14 +339,14 @@ export default function FeedPage() {
                 </div>
               )}
 
-              {/* Likes or Edit */}
+              {/* Likes and Edit */}
               <div className="flex justify-between items-center text-sm mt-3">
                 <button
                   onClick={() => handleLike(post.id)}
-                  disabled={isOwnPost}
+                  disabled={!user || !!isOwnPost}
                   className={`flex items-center gap-1 text-sm transition ${
                     liked ? "text-red-500" : "text-gray-400 hover:text-red-500"
-                  } ${isOwnPost ? "opacity-50 cursor-not-allowed" : ""}`}
+                  } ${!user || isOwnPost ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <span className="text-lg">{liked ? "❤️" : "🤍"}</span>
                   <span>{likesCount}</span>
@@ -167,62 +368,90 @@ export default function FeedPage() {
 
       {/* Edit Modal */}
       {editingPost && (
-  <div className="fixed inset-0 flex items-center justify-center z-50">
-    {/* Overlay */}
-    <div
-      className="absolute inset-0 bg-black opacity-30"
-      onClick={() => setEditingPost(null)}
-    />
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black opacity-30"
+            onClick={cancelEdit}
+          />
 
-    {/* Modal content */}
-    <div
-      className="bg-base-100 p-6 rounded-lg shadow-lg w-full max-w-lg relative z-10"
-      onClick={(e) => e.stopPropagation()} // <-- important!
-    >
-      <h2 className="text-xl font-semibold mb-4">Edit Post</h2>
-
-      <form onSubmit={handleSaveEdit} className="space-y-4">
-        {/* Title */}
-        <input
-          className="input input-bordered w-full"
-          value={editingPost.title}
-          onChange={(e) =>
-            setEditingPost({ ...editingPost, title: e.target.value })
-          }
-        />
-        {/* Body */}
-        <textarea
-          className="textarea textarea-bordered w-full h-24"
-          value={editingPost.body}
-          onChange={(e) =>
-            setEditingPost({ ...editingPost, body: e.target.value })
-          }
-        />
-        {/* Code snippet */}
-        <textarea
-          className="textarea textarea-bordered w-full h-24"
-          value={editingPost.code || ""}
-          onChange={(e) =>
-            setEditingPost({ ...editingPost, code: e.target.value || null })
-          }
-        />
-        {/* Save / Cancel buttons */}
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => setEditingPost(null)}
+          {/* Modal content */}
+          <div
+            className="bg-base-100 p-6 rounded-lg shadow-lg w-full max-w-lg relative z-10"
+            onClick={(e) => e.stopPropagation()}
           >
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary">
-            Save Changes
-          </button>
+            <h2 className="text-xl font-semibold mb-4">Edit Post</h2>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Title */}
+              <div>
+                <label className="label">
+                  <span className="label-text">Title</span>
+                </label>
+                <input
+                  className="input input-bordered w-full"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  maxLength={120}
+                />
+              </div>
+
+              {/* Body */}
+              <div>
+                <label className="label">
+                  <span className="label-text">Body</span>
+                </label>
+                <textarea
+                  className="textarea textarea-bordered w-full h-24"
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                />
+              </div>
+
+              {/* Code snippet */}
+              <div>
+                <label className="label">
+                  <span className="label-text">Code Snippet (optional)</span>
+                </label>
+                <textarea
+                  className="textarea textarea-bordered w-full h-24"
+                  placeholder="Paste a command or small code snippet"
+                  value={editCode}
+                  onChange={(e) => setEditCode(e.target.value)}
+                />
+                {editCode && (
+                  <div className="mt-3 mockup-code w-full">
+                    {editCode.split("\n").map((line, i) => (
+                      <pre key={i} data-prefix="$">
+                        <code>{line || '\u00A0'}</code>
+                      </pre>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Save / Cancel buttons */}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={cancelEdit}
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className={`btn btn-primary ${updating ? 'loading' : ''}`}
+                  disabled={updating}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
-)}
+      )}
     </main>
   );
 }

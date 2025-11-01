@@ -162,4 +162,23 @@ User.hasMany(Post, {
   as: 'posts',
 });
 
+// Import and setup associations with post interactions
+// These will be properly initialized after all models are loaded
+import { PostLike, PostComment, PostFavorite } from './post-interactions';
+
+Post.hasMany(PostLike, {
+  foreignKey: 'postUuid',
+  as: 'likes',
+});
+
+Post.hasMany(PostComment, {
+  foreignKey: 'postUuid',
+  as: 'comments',
+});
+
+Post.hasMany(PostFavorite, {
+  foreignKey: 'postUuid',
+  as: 'favorites',
+});
+
 export default Post;
