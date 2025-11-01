@@ -2,6 +2,7 @@ import { User } from '../models/user-model';
 import { ensureDbReady } from '../../lib/database';
 import { Op } from 'sequelize';
 import { UserActionSchema } from '../schemas/user-schemas';
+import { messageSSEManager } from '../../lib/message-sse';
 
 // Do not auto-initialize at module load to avoid races; await ensureDbReady() inside handlers
 
@@ -33,14 +34,31 @@ export async function getAllUsers(request: Request) {
     await ensureDbReady();
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const search = url.searchParams.get('search') || '';
     const offset = (page - 1) * limit;
 
+    // Build where clause for search
+    const whereClause = search
+      ? {
+          [Op.or]: [
+            { numeFullName: { [Op.like]: `%${search}%` } },
+            { email: { [Op.like]: `%${search}%` } },
+            { departament: { [Op.like]: `%${search}%` } },
+            { jobTitle: { [Op.like]: `%${search}%` } },
+          ],
+        }
+      : {};
+
     const users = await User.findAndCountAll({
+      where: whereClause,
       attributes: { exclude: ['parola'] }, // Don't return passwords
       limit,
       offset,
-      order: [['createdAt', 'DESC']],
+      order: [
+        ['status', 'ASC'], // online first, then away, busy, offline
+        ['numeFullName', 'ASC'],
+      ],
     });
 
     return createResponse({
@@ -265,6 +283,62 @@ export async function searchUsers(request: Request) {
     });
 
     return createResponse(users, 200, 'Search completed successfully');
+  } catch (error) {
+    return createErrorResponse(error);
+  }
+}
+
+// PUT /api/users/[id]/status - Update user status
+export async function updateUserStatus(userId: string, status: 'online' | 'away' | 'busy' | 'offline') {
+  try {
+    await ensureDbReady();
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return createErrorResponse(new Error('User not found'), 404);
+    }
+
+    await user.update({
+      status,
+      lastSeen: new Date(),
+    });
+
+    // Broadcast status change via SSE to all connected clients
+    console.log(`[updateUserStatus] Broadcasting status change for user ${userId}: ${status}`);
+    messageSSEManager.broadcast({
+      type: 'userStatusChanged',
+      data: {
+        uuid: userId,
+        status,
+        lastSeen: user.lastSeen,
+      },
+    });
+
+    const userJson = user.toJSON();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { parola, ...userResponse } = userJson;
+
+    return createResponse(userResponse, 200, 'Status updated successfully');
+  } catch (error) {
+    return createErrorResponse(error);
+  }
+}
+
+// POST /api/users/heartbeat - Update user's lastSeen timestamp (called periodically from client)
+export async function updateUserHeartbeat(userId: string) {
+  try {
+    await ensureDbReady();
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return createErrorResponse(new Error('User not found'), 404);
+    }
+
+    await user.update({
+      lastSeen: new Date(),
+    });
+
+    return createResponse({ lastSeen: user.lastSeen }, 200, 'Heartbeat updated');
   } catch (error) {
     return createErrorResponse(error);
   }

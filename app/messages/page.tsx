@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CHATS, type Chat } from "./data";
+import { useAuth } from "../contexts/AuthContext";
 
-function statusColor(s: Chat["status"]) {
+type UserStatus = "online" | "away" | "busy" | "offline";
+
+type User = {
+  uuid: string;
+  numeFullName: string;
+  email: string;
+  poza?: string;
+  status?: UserStatus;
+};
+
+type Conversation = {
+  partner: User;
+  lastMessage: {
+    text: string;
+    createdAt: string;
+    senderUuid: string;
+  } | null;
+  unreadCount: number;
+};
+
+function statusColor(s: UserStatus) {
   switch (s) {
     case "online":
       return "bg-success";
@@ -19,14 +39,61 @@ function statusColor(s: Chat["status"]) {
 
 export default function Messages() {
   const router = useRouter();
-  const [chats] = useState<Chat[]>(CHATS);
+  const { user } = useAuth();
+  const [chats, setChats] = useState<Conversation[]>([]);
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
   const inputRef = useRef<HTMLDivElement | null>(null);
 
-  // expose unread count for header via localStorage
+  // Fetch conversations
   useEffect(() => {
-    const unread = chats.filter((c) => c.unread).length;
+    if (!user?.uuid) return;
+    
+    async function fetchConversations() {
+      try {
+        const response = await fetch(`/api/messages/conversations?user=${user!.uuid}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.conversations) {
+            setChats(data.data.conversations);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching conversations:', error);
+      }
+    }
+    
+    fetchConversations();
+  }, [user]);
+
+  // Search all users
+  useEffect(() => {
+    if (!query.trim()) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/users?search=${encodeURIComponent(query)}&limit=20`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.users) {
+            const filtered = data.data.users.filter((u: User) => u.uuid !== user?.uuid);
+            setSearchResults(filtered);
+          }
+        }
+      } catch (error) {
+        console.error('Error searching users:', error);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, user]);
+
+  // Update unread count for header
+  useEffect(() => {
+    const unread = chats.reduce((sum, c) => sum + c.unreadCount, 0);
     try {
       localStorage.setItem("unread_messages", String(unread));
     } catch {
@@ -34,11 +101,51 @@ export default function Messages() {
     }
   }, [chats]);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [] as Chat[];
-    return chats.filter((c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q));
-  }, [query, chats]);
+  // Setup SSE for real-time updates
+  useEffect(() => {
+    if (!user?.uuid) return;
+
+    const eventSource = new EventSource('/api/messages/sse');
+    
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Messages list SSE event:', data);
+        
+        if (data.type === 'messageCreated' || data.type === 'unreadCountUpdate') {
+          console.log('Message or unread count update, refreshing conversations...');
+          // Refresh conversations when new message arrives or unread count changes
+          fetch(`/api/messages/conversations?user=${user.uuid}`)
+            .then(res => res.json())
+            .then(fetchData => {
+              if (fetchData.success && fetchData.data.conversations) {
+                setChats(fetchData.data.conversations);
+              }
+            })
+            .catch(console.error);
+        }
+        
+        if (data.type === 'userStatusChanged') {
+          console.log('User status changed, refreshing conversations...');
+          // Refresh conversations to update status indicators
+          fetch(`/api/messages/conversations?user=${user.uuid}`)
+            .then(res => res.json())
+            .then(fetchData => {
+              if (fetchData.success && fetchData.data.conversations) {
+                setChats(fetchData.data.conversations);
+              }
+            })
+            .catch(console.error);
+        }
+      } catch (error) {
+        console.error('Error parsing SSE event:', error);
+      }
+    };
+
+    eventSource.onmessage = handleMessage;
+
+    return () => eventSource.close();
+  }, [user]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -51,6 +158,11 @@ export default function Messages() {
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, []);
+
+  function formatTime(dateString: string) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
 
   return (
     <main className="min-h-screen bg-base-200 p-6">
@@ -72,15 +184,19 @@ export default function Messages() {
                 onFocus={() => setShowResults(true)}
               />
 
-              {showResults && results.length > 0 && (
+              {showResults && searchResults.length > 0 && (
                 <ul className="absolute z-50 mt-2 w-full bg-base-100 border border-base-200 rounded-md shadow-lg max-h-64 overflow-auto">
-                  {results.map((r) => (
+                  {searchResults.map((r) => (
                     <li
-                      key={r.id}
+                      key={r.uuid}
                       className="p-3 hover:bg-base-200 cursor-pointer"
-                      onClick={() => router.push(`/messages/${r.id}`)}
+                      onClick={() => {
+                        router.push(`/messages/${r.uuid}`);
+                        setShowResults(false);
+                        setQuery("");
+                      }}
                     >
-                      <div className="font-medium">{r.name}</div>
+                      <div className="font-medium">{r.numeFullName}</div>
                       <div className="text-xs text-neutral">{r.email}</div>
                     </li>
                   ))}
@@ -90,37 +206,48 @@ export default function Messages() {
           </div>
 
           <div className="divide-y divide-base-200">
+            {chats.length === 0 && (
+              <div className="p-8 text-center text-neutral">
+                <p>No conversations yet. Search for colleagues above to start chatting!</p>
+              </div>
+            )}
             {chats.map((c) => (
-              <div key={c.id} className="block">
+              <div key={c.partner.uuid} className="block">
                 <div
-                  onClick={() => router.push(`/messages/${c.id}`)}
+                  onClick={() => router.push(`/messages/${c.partner.uuid}`)}
                   className="flex items-center gap-4 p-4 hover:bg-base-200 cursor-pointer"
                 >
                   <div className="relative">
                     <div className="avatar">
-                      <div className="w-12 h-12 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-semibold">
-                        {c.name
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .slice(0, 2)
-                          .join("")}
+                      <div className="w-12 h-12 rounded-full overflow-hidden">
+                        {c.partner.poza ? (
+                          <img src={c.partner.poza} alt={c.partner.numeFullName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-semibold">
+                            {c.partner.numeFullName
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .slice(0, 2)
+                              .join("")}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* status ping (animated) */}
-                    <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(c.status)}`} style={{ opacity: 0.9 }} />
-                    <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(c.status)} animate-ping`} style={{ opacity: 0.9 }} />
+                    {/* status ping (animated) - use partner.status from DB */}
+                    <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(c.partner.status || 'offline')}`} style={{ opacity: 0.9 }} />
+                    <span className={`absolute bottom-0 right-0 inline-flex h-3 w-3 rounded-full ${statusColor(c.partner.status || 'offline')} animate-ping`} style={{ opacity: 0.9 }} />
                   </div>
 
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <div className={`${c.unread ? "font-bold" : "font-medium"}`}>{c.name}</div>
+                      <div className={`${c.unreadCount > 0 ? "font-bold" : "font-medium"}`}>{c.partner.numeFullName}</div>
                       <div className="flex items-center gap-2">
-                        {c.unread && <span className="inline-block h-2 w-2 rounded-full bg-accent animate-bounce" aria-hidden />}
-                        <div className="text-xs text-neutral">2:14 PM</div>
+                        {c.unreadCount > 0 && <span className="inline-block h-2 w-2 rounded-full bg-accent animate-bounce" aria-hidden />}
+                        <div className="text-xs text-neutral">{c.lastMessage ? formatTime(c.lastMessage.createdAt) : ''}</div>
                       </div>
                     </div>
-                    <p className="text-sm text-muted mt-1 line-clamp-1">{c.lastMessage}</p>
+                    <p className="text-sm text-muted mt-1 line-clamp-1">{c.lastMessage?.text || 'No messages yet'}</p>
                   </div>
                 </div>
               </div>

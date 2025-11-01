@@ -113,6 +113,75 @@ export default function Header() {
     return () => window.removeEventListener('points_updated', onPointsUpdated as EventListener);
   }, []);
 
+  // Setup SSE connection for real-time message notifications
+  useEffect(() => {
+    if (!user) return; // Only connect if user is logged in
+
+    // Fetch initial unread count
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch(`/api/messages?user=${user.uuid}&unreadOnly=true&limit=1000`);
+        if (response.ok) {
+          const data = await response.json();
+          const count = data.data?.pagination?.total || 0;
+          console.log('[Header] Initial unread count:', count);
+          setUnreadCount(count);
+          localStorage.setItem('unread_messages', String(count));
+        }
+      } catch (error) {
+        console.error('[Header] Error fetching initial unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    console.log('[Header] Setting up message SSE connection for user:', user.uuid);
+    const eventSource = new EventSource('/api/messages/sse');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('[Header] SSE message received:', message);
+        
+        switch (message.type) {
+          case 'connected':
+            console.log('[Header] Message SSE connected:', message.timestamp);
+            break;
+            
+          case 'messageCreated':
+            console.log('[Header] New message received via SSE');
+            // A new message was sent to this user - will be followed by unreadCountUpdate
+            break;
+            
+          case 'messageRead':
+            console.log('[Header] Message marked as read via SSE');
+            // A message this user sent was read
+            break;
+            
+          case 'unreadCountUpdate':
+            console.log('[Header] Unread count update:', message.data.unreadCount);
+            const newCount = message.data.unreadCount;
+            setUnreadCount(newCount);
+            // Also update localStorage so it persists
+            localStorage.setItem('unread_messages', String(newCount));
+            break;
+        }
+      } catch (error) {
+        console.error('[Header] Error parsing SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('[Header] Message SSE error:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log('[Header] Closing message SSE connection');
+      eventSource.close();
+    };
+  }, [user]); // Reconnect if user changes
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -124,7 +193,7 @@ export default function Header() {
   // Don't render auth-dependent UI while loading
   if (loading) {
     return (
-      <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
+      <header className="fixed top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <button onClick={() => router.push('/feed')} className="btn btn-ghost btn-sm gap-2 items-center">
@@ -141,11 +210,20 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
+    <header className="fixed top-0 z-40 w-full border-b border-base-300 bg-base-200 shadow-sm backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/feed')} className="btn btn-ghost btn-sm gap-2 items-center">
-            <Image src="/assets/logo.jpeg" alt="logo" width={36} height={36} className="rounded-full" />
+          <button
+            onClick={() => router.push("/feed")}
+            className="btn btn-ghost btn-sm gap-2 items-center"
+          >
+            <Image
+              src="/assets/logo.jpeg"
+              alt="logo"
+              width={36}
+              height={36}
+              className="rounded-full"
+            />
             <span className="font-semibold">XIAT</span>
           </button>
         </div>
@@ -153,17 +231,34 @@ export default function Header() {
         <nav className="flex items-center gap-3">
           {user ? (
             <>
-              <Link className="btn btn-ghost btn-sm" href="/make-post">Post Something</Link>
-              {/* <Link className="btn btn-ghost btn-sm" href="/fun-activities">Fun Corner</Link> */}
-              <Link className="btn btn-ghost btn-sm" href="/rewards">Rewards</Link>
-              <Link className="btn btn-ghost btn-sm" href="/calendar">Calendar</Link>
-              
-              <Link className="btn btn-ghost btn-sm relative" href="/messages" aria-label="Messages">
+              <Link className="btn btn-ghost btn-sm" href="/make-post">
+                Post Something
+              </Link>
+              <Link className="btn btn-ghost btn-sm" href="/fun-activities">
+                Fun Corner
+              </Link>
+              <Link className="btn btn-ghost btn-sm" href="/rewards">
+                Rewards
+              </Link>
+              <Link className="btn btn-ghost btn-sm" href="/calendar">
+                Calendar
+              </Link>
+
+              <Link
+                className="btn btn-ghost btn-sm relative"
+                href="/messages"
+                aria-label="Messages"
+              >
                 Messages
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex items-center justify-center">
-                    <span className="inline-block h-2 w-2 rounded-full bg-error animate-bounce shadow-md" aria-hidden />
-                    <span className="sr-only">{unreadCount} unread messages</span>
+                    <span
+                      className="inline-block h-2 w-2 rounded-full bg-error animate-bounce shadow-md"
+                      aria-hidden
+                    />
+                    <span className="sr-only">
+                      {unreadCount} unread messages
+                    </span>
                   </span>
                 )}
               </Link>
@@ -177,9 +272,15 @@ export default function Header() {
 
                 <Link href="/checkout" className="btn btn-ghost btn-sm">
                   <div className="indicator">
-                    <span className="indicator-item badge badge-primary">{cartCount}</span>
-                    <span aria-hidden className="text-lg">🛒</span>
-                    <span className="sr-only">Shopping cart with {cartCount} items</span>
+                    <span className="indicator-item badge badge-primary">
+                      {cartCount}
+                    </span>
+                    <span aria-hidden className="text-lg">
+                      🛒
+                    </span>
+                    <span className="sr-only">
+                      Shopping cart with {cartCount} items
+                    </span>
                   </div>
                 </Link>
               </div>
@@ -189,32 +290,51 @@ export default function Header() {
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-sm gap-2">
                   {user.poza ? (
-                    <Image 
-                      src={user.poza} 
-                      alt={user.numeFullName} 
-                      width={24} 
-                      height={24} 
-                      className="rounded-full" 
+                    <Image
+                      src={user.poza}
+                      alt={user.numeFullName}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
                     />
                   ) : (
                     <div className="avatar placeholder">
                       <div className="bg-neutral text-neutral-content rounded-full w-6">
-                        <span className="text-xs">{user.numeFullName?.charAt(0) || user.email?.charAt(0) || '?'}</span>
+                        <span className="text-xs">
+                          {user.numeFullName?.charAt(0) ||
+                            user.email?.charAt(0) ||
+                            "?"}
+                        </span>
                       </div>
                     </div>
                   )}
-                  <span className="hidden md:inline">{user.numeFullName?.split(' ')[0] || user.email?.split('@')[0] || 'User'}</span>
+                  <span className="hidden md:inline">
+                    {user.numeFullName?.split(" ")[0] ||
+                      user.email?.split("@")[0] ||
+                      "User"}
+                  </span>
                 </label>
-                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2">
-                  <li><Link href="/user">Profile</Link></li>
-                  <li><button onClick={handleLogout}>Logout</button></li>
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2"
+                >
+                  <li>
+                    <Link href="/user">Profile</Link>
+                  </li>
+                  <li>
+                    <button onClick={handleLogout}>Logout</button>
+                  </li>
                 </ul>
               </div>
             </>
           ) : (
             <>
-              <Link className="btn btn-ghost btn-sm" href="/auth">Login</Link>
-              <Link className="btn btn-primary btn-sm" href="/register">Register</Link>
+              <Link className="btn btn-ghost btn-sm" href="/auth">
+                Login
+              </Link>
+              <Link className="btn btn-primary btn-sm" href="/register">
+                Register
+              </Link>
             </>
           )}
           <ThemeToggle />
