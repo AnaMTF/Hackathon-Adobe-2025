@@ -1,9 +1,18 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { MERCH, type Merch } from "../shop/data";
 
 type CartItem = { id: string; qty: number };
+
+type RewardItem = {
+  id: string;
+  slug?: string | null;
+  title: string;
+  description?: string | null;
+  price: number;
+  img?: string | null;
+  stock?: number;
+};
 
 export default function RewardsPage() {
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -41,20 +50,67 @@ export default function RewardsPage() {
     }
   }, [cart]);
 
-  const addToCart = (item: Merch) => {
+  const [items, setItems] = useState<RewardItem[]>([]);
+  const [processingIds, setProcessingIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchRewards = async () => {
+      try {
+        const res = await fetch('/api/rewards');
+        if (!res.ok) throw new Error('Failed to fetch rewards');
+        const data = await res.json();
+        if (data.success && data.data && data.data.rewards) {
+          if (mounted) setItems(data.data.rewards.map((r: any) => ({
+            id: r.id,
+            slug: r.slug ?? null,
+            title: r.title,
+            description: r.description,
+            price: r.price,
+            img: r.img,
+            stock: r.stock ?? 0,
+          })));
+        }
+      } catch (err) {
+        console.error('Error loading rewards', err);
+      }
+    };
+
+    fetchRewards();
+    return () => { mounted = false; };
+  }, []);
+
+  const addToCart = (item: RewardItem) => {
+    const key = item.slug ?? item.id;
+    // guard against double clicks / race: if already processing this id, ignore
+    if (processingIds.includes(key)) return;
+    setProcessingIds((s) => [...s, key]);
+
     // if user doesn't have enough points, show an alert
-    if (points < item.price) {
-      window.alert("Not enough points to redeem this item.");
+    // if item is out of stock, show an alert
+    if ((item.stock ?? 0) <= 0) {
+      window.alert("This item is out of stock.");
+      // release processing lock
+      setProcessingIds((s) => s.filter((x) => x !== key));
       return;
     }
 
+    if (points < item.price) {
+      window.alert("Not enough points to redeem this item.");
+      // release processing lock
+      setProcessingIds((s) => s.filter((x) => x !== key));
+      return;
+    }
+
+    // prevent accidental double clicks by ensuring we update state only once per invocation
     setCart((prev) => {
       const copy = [...prev];
-      const idx = copy.findIndex((c) => c.id === item.id);
+      // prefer slug for stable string id, otherwise use UUID
+      const idx = copy.findIndex((c) => c.id === key);
       if (idx >= 0) {
-        copy[idx].qty += 1;
+        copy[idx].qty = (copy[idx].qty || 0) + 1;
       } else {
-        copy.push({ id: item.id, qty: 1 });
+        copy.push({ id: key, qty: 1 });
       }
       return copy;
     });
@@ -66,6 +122,9 @@ export default function RewardsPage() {
       localStorage.setItem("user_points", String(newPoints));
       window.dispatchEvent(new CustomEvent("points_updated"));
     } catch {}
+    // release processing lock after short delay to avoid accidental duplicates
+    setTimeout(() => setProcessingIds((s) => s.filter((x) => x !== key)), 300);
+
   };
 
   const totalCartItems = cart.reduce((s, i) => s + (i.qty || 0), 0);
@@ -84,24 +143,28 @@ export default function RewardsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {MERCH.map((m) => (
+        {items.map((m) => (
           <article key={m.id} className="card card-compact bg-base-100 shadow">
             <figure className="h-44 w-full overflow-hidden">
-              <img src={m.img} alt={m.title} className="object-cover w-full h-full" />
+              <img src={m.img ?? '/assets/placeholder.png'} alt={m.title} className="object-cover w-full h-full" />
             </figure>
             <div className="card-body">
               <div className="flex items-start justify-between">
                 <h2 className="card-title">{m.title}</h2>
-                <span className="badge badge-primary">{m.price} pts</span>
+                <div className="flex items-center gap-2">
+                  <span className="badge badge-primary">{m.price} pts</span>
+                  <span className={`badge ${ (m.stock ?? 0) <= 0 ? 'badge-error' : 'badge-outline' }`}>{m.stock ?? 0} left</span>
+                </div>
               </div>
-              <p className="text-sm opacity-80">{m.desc}</p>
+              <p className="text-sm opacity-80">{m.description}</p>
               <div className="card-actions justify-end">
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => addToCart(m)}
                   aria-label={`Redeem ${m.title}`}
+                  disabled={processingIds.includes(m.slug ?? m.id) || (m.stock ?? 0) <= 0}
                 >
-                  Redeem
+                  {processingIds.includes(m.slug ?? m.id) ? 'Adding…' : 'Redeem'}
                 </button>
               </div>
             </div>
