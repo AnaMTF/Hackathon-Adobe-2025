@@ -174,16 +174,25 @@ export default function ConversationPage() {
           }
           
           if (data.type === 'userStatusChanged' || data.type === 'user-status-changed') {
-            console.log('👤 User status changed event');
-            // Refresh partner info to update status
+            console.log('👤 User status changed event:', data.data);
+            // Check if the status change is for the current chat partner
+            if (data.data.uuid === partnerId) {
+              console.log('✅ Partner status changed, updating partner info...');
+              setPartner(prev => prev ? { ...prev, status: data.data.status } : null);
+            }
+            // Also refresh full partner info to ensure consistency
             fetch(`/api/users/${partnerId}`)
               .then(res => res.json())
               .then(fetchData => {
                 if (fetchData.success && fetchData.data.user) {
+                  console.log('✅ Partner info refreshed:', fetchData.data.user);
                   setPartner(fetchData.data.user);
+                } else if (fetchData.success && fetchData.data) {
+                  console.log('✅ Partner info refreshed (alternate format):', fetchData.data);
+                  setPartner(fetchData.data);
                 }
               })
-              .catch(console.error);
+              .catch(err => console.error('Error refreshing partner info:', err));
           }
         } catch (error) {
           console.error('❌ Error parsing SSE event:', error, 'Raw data:', event.data);
