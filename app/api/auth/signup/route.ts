@@ -5,6 +5,9 @@ import { hashPassword, generateToken, setAuthCookie } from '../../../../lib/auth
 import { processImageFromBase64 } from '../../../../lib/image-processing';
 import { z } from 'zod';
 
+// Force Node.js runtime for this route
+export const runtime = 'nodejs';
+
 // Validation schema for signup
 const SignupSchema = z.object({
   numeFullName: z.string().min(1, 'Full name is required').max(100),
@@ -81,11 +84,26 @@ export async function POST(request: NextRequest) {
       location: data.location || undefined,
     });
 
+    console.log('[signup] User created:', {
+      uuid: user.uuid,
+      email: user.email,
+      numeFullName: user.numeFullName,
+      hasUuid: !!user.uuid,
+      uuidType: typeof user.uuid
+    });
+
+    // Ensure UUID exists
+    if (!user.uuid) {
+      throw new Error('User UUID was not generated');
+    }
+
     // Generate JWT token
     const token = generateToken({
       userId: user.uuid,
       email: user.email,
     });
+
+    console.log('[signup] Token generated, setting cookie');
 
     // Set auth cookie
     await setAuthCookie(token);

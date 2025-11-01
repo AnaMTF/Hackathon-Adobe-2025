@@ -4,6 +4,9 @@ import { ensureDbReady } from '../../../../lib/database';
 import { comparePassword, generateToken, setAuthCookie } from '../../../../lib/auth';
 import { z } from 'zod';
 
+// Force Node.js runtime for this route
+export const runtime = 'nodejs';
+
 // Validation schema for login
 const LoginSchema = z.object({
   email: z.string().email('Invalid email format'),
@@ -38,6 +41,14 @@ export async function POST(request: NextRequest) {
     // Find user by email
     const user = await User.findOne({ where: { email } });
     
+    console.log('[login] User found:', !!user);
+    console.log('[login] User data:', user ? {
+      uuid: user.uuid,
+      email: user.email,
+      hasPassword: !!user.parola,
+      passwordLength: user.parola?.length
+    } : 'none');
+    
     if (!user) {
       return NextResponse.json(
         {
@@ -48,7 +59,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!user.parola) {
+      console.error('[login] User has no password hash!');
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid email or password',
+        },
+        { status: 401 }
+      );
+    }
+
     // Verify password
+    console.log('[login] Comparing password...');
     const isPasswordValid = await comparePassword(parola, user.parola);
     
     if (!isPasswordValid) {
