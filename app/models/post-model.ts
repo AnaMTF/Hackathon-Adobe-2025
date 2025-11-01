@@ -12,7 +12,7 @@ export interface EventInfo {
 export interface PostAttributes {
   uuid: string;
   authorUuid: string;
-  poze: string[]; // Array of image URLs (max 3)
+  poze: string[]; // Array of base64 image data (max 3)
   text: string; // Max 256 characters
   tags: string[]; // Array of user UUIDs (max 10)
   event?: EventInfo; // Optional event information
@@ -71,10 +71,14 @@ Post.init(
           if (value.length > 3) {
             throw new Error('Maximum 3 photos allowed');
           }
-          // Validate each URL
-          value.forEach(url => {
-            if (typeof url !== 'string' || !url.match(/^https?:\/\/.+/)) {
-              throw new Error('Each photo must be a valid URL');
+          // Validate each item is a string (base64 data or empty)
+          value.forEach((item, index) => {
+            if (typeof item !== 'string') {
+              throw new Error(`Photo at index ${index} must be a string`);
+            }
+            // If not empty, should start with data:image or be a valid base64
+            if (item && !item.startsWith('data:image')) {
+              throw new Error(`Photo at index ${index} must be a valid base64 data URL`);
             }
           });
         },

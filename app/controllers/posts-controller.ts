@@ -2,6 +2,7 @@ import { Post } from '../models/post-model';
 import { User } from '../models/user-model';
 import { PostLike, PostComment, PostFavorite } from '../models/post-interactions';
 import { ensureDbReady } from '../../lib/database';
+import { processImageFromBase64 } from '../../lib/image-processing';
 import { Op } from 'sequelize';
 import { PostActionSchema } from '../schemas/post-schemas';
 
@@ -140,10 +141,30 @@ async function createPostInternal(content: {
       );
     }
 
+    // Process images if provided
+    let processedImages: string[] = [];
+    if (content.poze && content.poze.length > 0) {
+      processedImages = await Promise.all(
+        content.poze.map(async (image) => {
+          if (image && image.startsWith('data:image')) {
+            try {
+              // Optimize images: resize to 1200px width, 85% quality for posts
+              return await processImageFromBase64(image, 1200, 85);
+            } catch (error) {
+              console.error('Image processing failed:', error);
+              // Return original if processing fails
+              return image;
+            }
+          }
+          return image;
+        })
+      );
+    }
+
     // Set default values and convert date if needed
     const postData = {
       ...content,
-      poze: content.poze || [],
+      poze: processedImages,
       tags: content.tags || [],
       timestamp: new Date(),
       event: content.event ? {

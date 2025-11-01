@@ -12,7 +12,7 @@ export const PostCreateSchema = z.object({
   content: z.object({
     authorUuid: z.string().uuid(),
     text: z.string().min(1).max(256),
-    poze: z.array(z.string().url()).max(3).default([]),
+    poze: z.array(z.string().startsWith('data:image')).max(3).default([]), // Base64 images
     tags: z.array(z.string().uuid()).max(10).default([]),
     event: EventSchema.optional(),
   }),
@@ -22,7 +22,7 @@ export const PostUpdateSchema = z.object({
   action: z.literal('update'),
   content: z.object({
     text: z.string().min(1).max(256).optional(),
-    poze: z.array(z.string().url()).max(3).optional(),
+    poze: z.array(z.string().startsWith('data:image')).max(3).optional(), // Base64 images
     tags: z.array(z.string().uuid()).max(10).optional(),
     event: EventSchema.optional(),
   }).refine(
