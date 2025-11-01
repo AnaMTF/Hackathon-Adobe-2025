@@ -28,7 +28,7 @@ export const UserCreateSchema = z.object({
     telefon: z.string().regex(/^[+]?[\d\s-().]+$/).optional(),
     departament: z.string().min(1).max(100),
     jobTitle: z.string().min(1).max(100),
-    location: z.string().min(1).max(255),
+    location: z.string().min(1).max(255).optional(),
   }),
 });
 

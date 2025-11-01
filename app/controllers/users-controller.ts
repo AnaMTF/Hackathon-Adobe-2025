@@ -106,9 +106,9 @@ async function createUserInternal(fields: {
   parola: string;
   departament: string;
   jobTitle: string;
-  location: string;
   poza?: string;
   telefon?: string;
+  location?: string;
 }) {
   try {
     // Check if email already exists

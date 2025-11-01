@@ -11,13 +11,13 @@ export interface UserAttributes {
   telefon?: string; // optional
   departament: string;
   jobTitle: string;
-  location: string;
+  location?: string; // optional
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 // Optional attributes for creation (uuid will be auto-generated)
-type UserCreationAttributes = Optional<UserAttributes, 'uuid' | 'poza' | 'telefon' | 'createdAt' | 'updatedAt'>;
+type UserCreationAttributes = Optional<UserAttributes, 'uuid' | 'poza' | 'telefon' | 'location' | 'createdAt' | 'updatedAt'>;
 
 // User model class
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
@@ -29,7 +29,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public telefon?: string;
   public departament!: string;
   public jobTitle!: string;
-  public location!: string;
+  public location?: string;
 
   // Timestamps
   public readonly createdAt!: Date;
@@ -100,9 +100,8 @@ User.init(
     },
     location: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       validate: {
-        notEmpty: true,
         len: [1, 255],
       },
     },
