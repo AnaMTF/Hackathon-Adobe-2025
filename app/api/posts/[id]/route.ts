@@ -2,8 +2,7 @@ import { getPostById, updatePost, deletePost } from '../../../controllers/posts-
 
 // We'll create a separate handler for post actions with ID
 async function handlePostActionWithId(request: Request, postId: string) {
-  const { handlePostAction } = await import('../../../controllers/posts-controller');
-  
+  // Lazy-load controller functions for action handling
   try {
     const body = await request.json();
     const { PostActionSchema } = await import('../../../schemas/post-schemas');
@@ -56,18 +55,22 @@ async function handlePostActionWithId(request: Request, postId: string) {
   }
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  return getPostById(request, params.id);
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return getPostById(request, id);
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
-  return handlePostActionWithId(request, params.id);
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return handlePostActionWithId(request, id);
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  return updatePost(request, params.id);
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return updatePost(request, id);
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  return deletePost(request, params.id);
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return deletePost(request, id);
 }

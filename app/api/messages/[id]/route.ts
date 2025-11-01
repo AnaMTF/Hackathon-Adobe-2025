@@ -1,22 +1,25 @@
 import { getMessageById, markMessageAsRead, deleteMessage } from '../../../controllers/messages-controller';
 
 export async function GET(
-  _request: Request,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  return getMessageById(params.id);
+  const { id } = await params;
+  return getMessageById(id);
 }
 
 export async function PUT(
-  _request: Request,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  return markMessageAsRead(params.id);
+  const { id } = await params;
+  return markMessageAsRead(id);
 }
 
 export async function DELETE(
-  _request: Request,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  return deleteMessage(params.id);
+  const { id } = await params;
+  return deleteMessage(id);
 }
